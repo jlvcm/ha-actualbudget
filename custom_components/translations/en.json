@@ -1,22 +1,28 @@
 {
-    "title": "actualbudget",
-    "config": {
-        "step": {
-            "login": {
-                "title": "Login",
-                "description": "Login to actualbudget",
-                "data": {
-                    "host": "host",
-                    "password": "password"
-                },
-                "data_description": {
-                    "host": "actualbudget host",
-                    "password": "password"
-                }
-            }
+  "title": "actualbudget",
+  "config": {
+    "step": {
+      "login": {
+        "title": "Login",
+        "description": "Login to actualbudget",
+        "data": {
+          "host": "host",
+          "password": "password"
         },
-        "error": {
-            "failed_to_connect": "Failed to connect"
-        },
+        "data_description": {
+          "host": "actualbudget host",
+          "password": "password"
+        }
+      }
+    },
+    "error": {
+      "failed_to_connect": "Failed to connect",
+      "failed_cert": "Failed to connect: certificate error",
+      "failed_file": "Failed to connect: invalid file id",
+      "failed_unknown": "Failed to connect: unknown error"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
     }
+  }
 }

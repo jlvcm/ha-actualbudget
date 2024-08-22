@@ -1,22 +1,28 @@
 {
-    "title": "actualbudget",
-    "config": {
-        "step": {
-            "login": {
-                "title": "Login",
-                "description": "Login to actualbudget",
-                "data": {
-                    "host": "host",
-                    "password": "password"
-                },
-                "data_description": {
-                    "host": "actualbudget host",
-                    "password": "password"
-                }
-            }
+  "title": "actualbudget",
+  "config": {
+    "step": {
+      "login": {
+        "title": "Login",
+        "description": "Entrar com suas credenciais do actualbudget",
+        "data": {
+          "host": "host",
+          "password": "palavra-passe"
         },
-        "error": {
-            "failed_to_connect": "Failed to connect"
-        },
+        "data_description": {
+          "host": "actualbudget host",
+          "password": "palavra-passe"
+        }
+      }
+    },
+    "error": {
+      "failed_to_connect": "Ligação falhou",
+      "failed_cert": "Certificado inválido",
+      "failed_file": "Ficheiro inválido",
+      "failed_unknown": "Falha desconhecida"
+    },
+    "abort": {
+      "already_configured": "Já configurado"
     }
+  }
 }
