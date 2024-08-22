@@ -1,0 +1,22 @@
+{
+    "title": "actualbudget",
+    "config": {
+        "step": {
+            "login": {
+                "title": "Login",
+                "description": "Login to actualbudget",
+                "data": {
+                    "host": "host",
+                    "password": "password"
+                },
+                "data_description": {
+                    "host": "actualbudget host",
+                    "password": "password"
+                }
+            }
+        },
+        "error": {
+            "failed_to_connect": "Failed to connect"
+        },
+    }
+}

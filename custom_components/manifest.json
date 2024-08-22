@@ -1,0 +1,14 @@
+{
+    "version": "1.0.0",
+    "domain": "actualbudget",
+    "name": "actualbudget Integration",
+    "documentation": "https://github.com/jlvcm/ha-actualbudget/blob/main/README.md",
+    "issue_tracker": "https://github.com/jlvcm/ha-actualbudget/issues",
+    "iot_class": "cloud_polling",
+    "requirements": [],
+    "dependencies": [],
+    "codeowners": [
+        "@jlvcm"
+    ],
+    "config_flow": true
+}
