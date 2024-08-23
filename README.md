@@ -1,11 +1,15 @@
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jlvcm&repository=ha-actualbudget)
 
+:star: If you appreciate this integration, please consider giving it a star! Your support encourages me to continue improving and expanding this project. Thank you! :star:
+
 # Actual Budget integration for Home Assistant
+
 This is a custom integration for Home Assistant that allows you to track your actual budget.
 
 note: It's a work in progress, so it may not ready for production yet.
 
 # Installation
+
 ## HACS
 
 1. Go to HACS page
@@ -15,6 +19,7 @@ note: It's a work in progress, so it may not ready for production yet.
 Note: If this is not in HACS yet, you can add this repository manually.
 
 # Configuration
+
 1. Go to Configuration -> Integrations
 2. Click on the "+" button
 3. Search for `Actual Budget`
@@ -29,6 +34,7 @@ Note: If this is not in HACS yet, you can add this repository manually.
 | Cert          | No        | The certificate to use for the connection |
 
 Example:
+
 ```
 Endpoint: https://localhost:5001
 Password: password
@@ -36,4 +42,3 @@ Encrypt Password: ''
 File: ab7c8d8e-048b-41b1-a9cf-13f0679edc0b
 Cert: 'SKIP'
 ```
-
