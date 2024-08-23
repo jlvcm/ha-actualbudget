@@ -6,12 +6,18 @@
         "title": "Login",
         "description": "Entrar com suas credenciais do actualbudget",
         "data": {
-          "host": "host",
-          "password": "palavra-passe"
+          "host": "host do actualbudget",
+          "password": "palavra-passe",
+          "encrypt_password": "palavra-passe de encriptação",
+          "file": "id do ficheiro",
+          "cert": "certificado"
         },
         "data_description": {
-          "host": "actualbudget host",
-          "password": "palavra-passe"
+          "host": "O host do servidor actualbudget",
+          "password": "A palavra-passe do servidor actualbudget",
+          "encrypt_password": "A palavra-passe para encriptar o ficheiro actualbudget",
+          "file": "O id do ficheiro do servidor actualbudget",
+          "cert": "O certificado do servidor actualbudget, escreva 'SKIP' para ignorar a validação do certificado"
         }
       }
     },

@@ -43,7 +43,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.debug("Starting async_step_user...")
 
         if user_input is None:
-            return self.async_show_form(step_id="user", data_schema=DATA_SCHEMA)
+            return self.async_show_form(step_id="login", data_schema=DATA_SCHEMA)
 
         unique_id = (
             user_input[CONFIG_ENDPOINT].lower() + "_" + user_input[CONFIG_FILE].lower()

@@ -6,12 +6,18 @@
         "title": "Login",
         "description": "Login to actualbudget",
         "data": {
-          "host": "host",
-          "password": "password"
+          "host": "actualbudget host",
+          "password": "password",
+          "encrypt_password": "encrypt password",
+          "file": "file id",
+          "cert": "certificate"
         },
         "data_description": {
-          "host": "actualbudget host",
-          "password": "password"
+          "host": "The host of the actualbudget server",
+          "password": "The password of the actualbudget server",
+          "encrypt_password": "The password to encrypt the actualbudget file",
+          "file": "The file id of the actualbudget server",
+          "cert": "The certificate of the actualbudget server, write 'SKIP' to skip certificate validation"
         }
       }
     },
