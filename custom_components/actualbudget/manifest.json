@@ -6,7 +6,7 @@
   "issue_tracker": "https://github.com/jlvcm/ha-actualbudget/issues",
   "iot_class": "cloud_polling",
   "requirements": [
-    "git+https://github.com/jlvcm/actualpy.git@main#actualpy"
+    "git+https://github.com/jlvcm/actualpy.git@pydanticv1#actualpy"
   ],
   "dependencies": [],
   "codeowners": [
