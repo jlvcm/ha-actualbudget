@@ -153,6 +153,10 @@ class actualbudgetSensor(SensorEntity):
             account = await api.get_account(self._name)
             if account:
                 self._state = account.balance
-        except aiohttp.ClientError as err:
+        except Exception as err:
             self._available = False
-            _LOGGER.exception("Error updating data from ActualBudget API. %s", err)
+            _LOGGER.exception(
+                "Unknown error updating data from ActualBudget API to account %s. %s",
+                self._name,
+                err,
+            )
