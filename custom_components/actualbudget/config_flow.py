@@ -53,8 +53,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         port = urlparse(endpoint).port
         password = user_input[CONFIG_PASSWORD]
         file = user_input[CONFIG_FILE]
-        cert = user_input[CONFIG_CERT]
-        encrypt_password = user_input[CONFIG_ENCRYPT_PASSWORD]
+        cert = user_input.get(CONFIG_CERT)
+        encrypt_password = user_input.get(CONFIG_ENCRYPT_PASSWORD)
         if cert == "SKIP":
             cert = False
 
