@@ -48,7 +48,7 @@ async def async_setup_entry(
     endpoint = config[CONFIG_ENDPOINT]
     password = config[CONFIG_PASSWORD]
     file = config[CONFIG_FILE]
-    cert = config[CONFIG_CERT]
+    cert = config.get(CONFIG_CERT)
     if cert == "SKIP":
         cert = False
     encrypt_password = config.get(CONFIG_ENCRYPT_PASSWORD)
