@@ -38,25 +38,23 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
-    async def async_step_login(self, login_input=None):
-        """Handle a flow initialized by the login interface."""
-        _LOGGER.debug("Starting async_step_login...")
+    async def async_step_user(self, user_input=None):
+        """Handle a flow initialized by the user interface."""
+        _LOGGER.debug("Starting async_step_user...")
 
-        if login_input is None:
-            return self.async_show_form(step_id="login", data_schema=DATA_SCHEMA)
+        if user_input is None:
+            return self.async_show_form(step_id="user", data_schema=DATA_SCHEMA)
 
         unique_id = (
-            login_input[CONFIG_ENDPOINT].lower()
-            + "_"
-            + login_input[CONFIG_FILE].lower()
+            user_input[CONFIG_ENDPOINT].lower() + "_" + user_input[CONFIG_FILE].lower()
         )
-        endpoint = login_input[CONFIG_ENDPOINT]
+        endpoint = user_input[CONFIG_ENDPOINT]
         domain = urlparse(endpoint).hostname
         port = urlparse(endpoint).port
-        password = login_input[CONFIG_PASSWORD]
-        file = login_input[CONFIG_FILE]
-        cert = login_input[CONFIG_CERT]
-        encrypt_password = login_input[CONFIG_ENCRYPT_PASSWORD]
+        password = user_input[CONFIG_PASSWORD]
+        file = user_input[CONFIG_FILE]
+        cert = user_input[CONFIG_CERT]
+        encrypt_password = user_input[CONFIG_ENCRYPT_PASSWORD]
         if cert == "SKIP":
             cert = False
 
@@ -68,12 +66,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         if error:
             return self.async_show_form(
-                step_id="login", data_schema=DATA_SCHEMA, errors={"base": error}
+                step_id="user", data_schema=DATA_SCHEMA, errors={"base": error}
             )
         else:
             return self.async_create_entry(
                 title=f"{domain}:{port} {file}",
-                data=login_input,
+                data=user_input,
             )
 
     async def _test_connection(self, endpoint, password, file, cert, encrypt_password):

@@ -2,7 +2,7 @@
   "title": "actualbudget",
   "config": {
     "step": {
-      "login": {
+      "user": {
         "title": "Login",
         "description": "Login to actualbudget",
         "data": {
