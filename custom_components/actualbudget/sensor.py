@@ -152,7 +152,7 @@ class actualbudgetSensor(SensorEntity):
             api = self._api
             account = await api.get_account(self._name)
             if account:
-                self._state = account.balance
+                self._state = account.get("balance")
         except Exception as err:
             self._available = False
             _LOGGER.exception(
