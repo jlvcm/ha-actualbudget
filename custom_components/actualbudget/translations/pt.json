@@ -6,14 +6,14 @@
         "title": "Login",
         "description": "Entrar com suas credenciais do actualbudget",
         "data": {
-          "host": "host do actualbudget",
+          "endpoint": "endpoint do actualbudget",
           "password": "palavra-passe",
           "encrypt_password": "palavra-passe de encriptação",
           "file": "id do ficheiro",
           "cert": "certificado"
         },
         "data_description": {
-          "host": "O host do servidor actualbudget",
+          "endpoint": "O endpoint do servidor actualbudget",
           "password": "A palavra-passe do servidor actualbudget",
           "encrypt_password": "A palavra-passe para encriptar o ficheiro actualbudget",
           "file": "O id do ficheiro do servidor actualbudget",
