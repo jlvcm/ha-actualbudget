@@ -76,5 +76,5 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _test_connection(self, endpoint, password, file, cert, encrypt_password):
         """Return true if gas station exists."""
-        api = ActualBudget(endpoint, password, file, cert, encrypt_password)
-        return await api.testConnection()
+        api = ActualBudget(self.hass, endpoint, password, file, cert, encrypt_password)
+        return await api.test_connection()

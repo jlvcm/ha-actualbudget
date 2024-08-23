@@ -51,13 +51,13 @@ async def async_setup_entry(
     file = config[CONFIG_FILE]
     cert = config[CONFIG_CERT]
     encrypt_password = config.get(CONFIG_ENCRYPT_PASSWORD)
-    api = ActualBudget(endpoint, password, file, cert, encrypt_password)
+    api = ActualBudget(hass, endpoint, password, file, cert, encrypt_password)
 
     domain = urlparse(endpoint).hostname
     port = urlparse(endpoint).port
     unique_source_id = f"{domain}_{port}_{file}"
 
-    accounts = await api.getAccounts()
+    accounts = await api.get_accounts()
 
     sensors = [
         actualbudgetSensor(
@@ -149,7 +149,7 @@ class actualbudgetSensor(SensorEntity):
         """Fetch new state data for the sensor."""
         try:
             api = self._api
-            account = await api.getAccount(self._name)
+            account = await api.get_account(self._name)
             if account:
                 self._state = account.balance
         except aiohttp.ClientError as err:

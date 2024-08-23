@@ -19,14 +19,19 @@ _LOGGER.setLevel(logging.DEBUG)
 class ActualBudget:
     """Interfaces to ActualBudget"""
 
-    def __init__(self, endpoint, password, file, cert, encrypt_password):
+    def __init__(self, hass, endpoint, password, file, cert, encrypt_password):
+        self.hass = hass
         self.endpoint = endpoint
         self.password = password
         self.file = file
         self.cert = cert
         self.encrypt_password = encrypt_password
 
-    async def getAccounts(self):
+    async def get_accounts(self):
+        """Get accounts."""
+        return await self.hass.async_add_executor_job(self.get_accounts_sync)
+
+    def get_accounts_sync(self):
         with Actual(
             base_url=self.endpoint,
             password=self.password,
@@ -37,7 +42,13 @@ class ActualBudget:
             accounts = get_accounts(actual.session)
             return [{"name": a.name, "balance": a.balance} for a in accounts]
 
-    async def getAccount(
+    async def get_account(self, account_name):
+        return await self.hass.async_add_executor_job(
+            self.get_account_sync,
+            account_name,
+        )
+
+    def get_account_sync(
         self,
         account_name,
     ):
@@ -53,7 +64,10 @@ class ActualBudget:
                 raise Exception(f"Account {account_name} not found")
             return {"name": account.name, "balance": account.balance}
 
-    async def testConnection(self):
+    async def test_connection(self):
+        return await self.hass.async_add_executor_job(self.test_connection_sync)
+
+    def test_connection_sync(self):
         try:
             with Actual(
                 base_url=self.endpoint,
