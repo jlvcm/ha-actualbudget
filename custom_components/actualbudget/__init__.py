@@ -7,6 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
+from .const import DOMAIN
 
 __version__ = "1.1.0"
 _LOGGER = logging.getLogger(__name__)
@@ -18,6 +19,9 @@ PLATFORMS: list[str] = ["sensor"]
 async def async_setup(hass: HomeAssistant, config: ConfigType):
     """Start configuring the API."""
     _LOGGER.debug("Start 'async_setup'...")
+
+    hass.data.setdefault(DOMAIN, {})
+
     return True
 
 
