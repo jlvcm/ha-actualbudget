@@ -8,7 +8,7 @@ from actual.exceptions import (
     InvalidZipFile,
     AuthorizationError,
 )
-from actual.queries import get_accounts, get_account
+from actual.queries import get_accounts, get_account, get_budget, get_budgets
 from requests.exceptions import ConnectionError, SSLError
 
 
@@ -63,6 +63,43 @@ class ActualBudget:
             if not account:
                 raise Exception(f"Account {account_name} not found")
             return {"name": account.name, "balance": account.balance}
+
+    async def get_budgets(self):
+        """Get budgets."""
+        return await self.hass.async_add_executor_job(self.get_budgets_sync)
+
+    def get_budgets_sync(self):
+        with Actual(
+            base_url=self.endpoint,
+            password=self.password,
+            cert=self.cert,
+            encryption_password=self.encrypt_password,
+            file=self.file,
+        ) as actual:
+            budgets = get_budgets(actual.session)
+            return [{"name": a.category_item.name, "amount": a.amount} for a in budgets]
+
+    async def get_budget(self, budget_name):
+        return await self.hass.async_add_executor_job(
+            self.get_budget_sync,
+            budget_name,
+        )
+
+    def get_budget_sync(
+        self,
+        budget_name,
+    ):
+        with Actual(
+            base_url=self.endpoint,
+            password=self.password,
+            cert=self.cert,
+            encryption_password=self.encrypt_password,
+            file=self.file,
+        ) as actual:
+            budget = get_budget(actual.session, budget_name)
+            if not budget:
+                raise Exception(f"budget {budget_name} not found")
+            return {"name": budget.name, "amount": budget.amount}
 
     async def test_connection(self):
         return await self.hass.async_add_executor_job(self.test_connection_sync)
