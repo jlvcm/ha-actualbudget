@@ -99,9 +99,9 @@ class ActualBudget:
             budgets_raw = get_budgets(actual.session)
             budgets: Dict[str, Budget] = {}
             for budget_raw in budgets_raw:
-                category = str(budget_raw["category_item"]["name"])
-                amount = float(budget_raw["amount"])
-                month = str(budget_raw["month"])
+                category = str(budget_raw.category_item.name)
+                amount = float(budget_raw.amount)
+                month = str(budget_raw.month)
                 if category not in budgets:
                     budgets[category] = Budget(name=category, amounts=[])
                 budgets[category].amounts.append(
@@ -133,9 +133,7 @@ class ActualBudget:
             budgets_raw = get_budget(actual.session, budget_name)
             if not budgets_raw or not budgets_raw[0]:
                 raise Exception(f"budget {budget_name} not found")
-            budget: Budget = Budget(
-                name=budgets_raw[0]["category_item"]["name"], amounts=[]
-            )
+            budget: Budget = Budget(name=budgets_raw[0].category_item.name, amounts=[])
             for budget_raw in budgets_raw:
                 amount = float(budget_raw["amount"])
                 month = str(budget_raw["month"])
