@@ -129,7 +129,7 @@ class actualbudgetAccountSensor(SensorEntity):
     @property
     def name(self) -> str:
         """Return the name of the entity."""
-        return f"actualbudget_account_{self._name}"
+        return self._name
 
     @property
     def unique_id(self) -> str:
@@ -213,7 +213,7 @@ class actualbudgetBudgetSensor(SensorEntity):
     @property
     def name(self) -> str:
         """Return the name of the entity."""
-        return f"actualbudget_budget_{self._name}"
+        return self._name
 
     @property
     def unique_id(self) -> str:
