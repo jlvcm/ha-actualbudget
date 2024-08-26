@@ -6,7 +6,7 @@
 
 This is a custom integration for Home Assistant that allows you to track your actual budget.
 
-Note: It's a work in progress, so it may not ready for production yet.
+Note: It's a work in progress, it should work but it may have some bugs and breaking changes.
 
 # Features
 
