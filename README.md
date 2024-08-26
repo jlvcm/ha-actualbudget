@@ -6,7 +6,12 @@
 
 This is a custom integration for Home Assistant that allows you to track your actual budget.
 
-note: It's a work in progress, so it may not ready for production yet.
+Note: It's a work in progress, so it may not ready for production yet.
+
+# Features
+
+- Gets all accounts balance and set it as sensors
+- Gets all budgets and set the current month as sensors (last month and total are set as extra attributes)
 
 # Installation
 
