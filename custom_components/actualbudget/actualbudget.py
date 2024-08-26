@@ -135,8 +135,8 @@ class ActualBudget:
                 raise Exception(f"budget {budget_name} not found")
             budget: Budget = Budget(name=budgets_raw[0].category_item.name, amounts=[])
             for budget_raw in budgets_raw:
-                amount = float(budget_raw["amount"])
-                month = str(budget_raw["month"])
+                amount = float(budget_raw.amount)
+                month = str(budget_raw.month)
                 budget.amounts.append(BudgetAmount(month=month, amount=amount))
             budget.amounts = sorted(budget.amounts, key=lambda x: x.month)
             return budget
