@@ -28,16 +28,9 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONFIG_ENDPOINT): str,
         vol.Required(CONFIG_PASSWORD): str,
         vol.Required(CONFIG_FILE): str,
+        vol.Required(CONFIG_UNIT, default="€"): str,
         vol.Optional(CONFIG_CERT): str,
         vol.Optional(CONFIG_ENCRYPT_PASSWORD): str,
-        CONFIG_UNIT: selector(
-            {
-                "select": {
-                    "options": ["€", "$", "£", "¥", "₽", "₹", "₩", "₿", "฿"],
-                    "default": "€",
-                }
-            }
-        ),
     }
 )
 
