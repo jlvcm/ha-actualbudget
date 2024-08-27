@@ -33,7 +33,7 @@ DATA_SCHEMA = vol.Schema(
         CONFIG_UNIT: selector(
             {
                 "select": {
-                    "options:": ["€", "$", "£", "¥", "₽", "₹", "₩", "₿", "฿"],
+                    "options": ["€", "$", "£", "¥", "₽", "₹", "₩", "₿", "฿"],
                     "default": "€",
                 }
             }
