@@ -10,14 +10,16 @@
           "password": "password",
           "encrypt_password": "encrypt password",
           "file": "file id",
-          "cert": "certificate"
+          "cert": "certificate",
+          "unit": "unit"
         },
         "data_description": {
           "endpoint": "The endpoint of the actualbudget server",
           "password": "The password of the actualbudget server",
           "encrypt_password": "The password to encrypt the actualbudget file",
           "file": "The file id of the actualbudget server",
-          "cert": "The certificate of the actualbudget server, write 'SKIP' to skip certificate validation"
+          "cert": "The certificate of the actualbudget server, write 'SKIP' to skip certificate validation",
+          "unit": "The currency of the actualbudget server"
         }
       }
     },

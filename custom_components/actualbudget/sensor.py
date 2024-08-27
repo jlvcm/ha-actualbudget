@@ -22,10 +22,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
     DEFAULT_ICON,
     DOMAIN,
-    UNIT_OF_MEASUREMENT,
     CONFIG_ENDPOINT,
     CONFIG_PASSWORD,
     CONFIG_FILE,
+    CONFIG_UNIT,
     CONFIG_CERT,
     CONFIG_ENCRYPT_PASSWORD,
 )
@@ -49,6 +49,8 @@ async def async_setup_entry(
     password = config[CONFIG_PASSWORD]
     file = config[CONFIG_FILE]
     cert = config.get(CONFIG_CERT)
+    unit = config.get(CONFIG_UNIT, "€")
+
     if cert == "SKIP":
         cert = False
     encrypt_password = config.get(CONFIG_ENCRYPT_PASSWORD)
@@ -65,6 +67,7 @@ async def async_setup_entry(
             endpoint,
             password,
             file,
+            unit,
             cert,
             encrypt_password,
             account.name,
@@ -82,6 +85,7 @@ async def async_setup_entry(
             endpoint,
             password,
             file,
+            unit,
             cert,
             encrypt_password,
             budget.name,
@@ -102,6 +106,7 @@ class actualbudgetAccountSensor(SensorEntity):
         endpoint: str,
         password: str,
         file: str,
+        unit: str,
         cert: str,
         encrypt_password: str | None,
         name: str,
@@ -120,7 +125,7 @@ class actualbudgetAccountSensor(SensorEntity):
         self._encrypt_password = encrypt_password
 
         self._icon = DEFAULT_ICON
-        self._unit_of_measurement = UNIT_OF_MEASUREMENT
+        self._unit_of_measurement = unit
         self._device_class = SensorDeviceClass.MONETARY
         self._state_class = SensorStateClass.MEASUREMENT
         self._state = None
@@ -187,6 +192,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         endpoint: str,
         password: str,
         file: str,
+        unit: str,
         cert: str,
         encrypt_password: str | None,
         name: str,
@@ -205,7 +211,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         self._encrypt_password = encrypt_password
 
         self._icon = DEFAULT_ICON
-        self._unit_of_measurement = UNIT_OF_MEASUREMENT
+        self._unit_of_measurement = unit
         self._device_class = SensorDeviceClass.MONETARY
         self._state_class = SensorStateClass.MEASUREMENT
         self._available = True
