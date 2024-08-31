@@ -1,5 +1,3 @@
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jlvcm&repository=ha-actualbudget)
-
 :star: If you appreciate this integration, please consider giving it a star! Your support encourages me to continue improving and expanding this project. Thank you! :star:
 
 # Actual Budget integration for Home Assistant
@@ -23,6 +21,16 @@ Note: It's a work in progress, it should work but it may have some bugs and brea
 
 Note: If this is not in HACS yet, you can add this repository manually.
 
+## Add The Repository Manually
+
+1.
+<img width="933" alt="SCR-20240830-lpfj" src="https://github.com/user-attachments/assets/b8ebd9ca-ccc2-4f60-a9a9-6cf69b71cafe">
+
+2.
+<img width="492" alt="SCR-20240830-lovt" src="https://github.com/user-attachments/assets/1ed50bff-77a2-46d4-9dc1-3aff97ee585a">
+
+3. restart home assistant, and add it in the Settings> Devices and services> Add integration> actualbudget
+
 # Configuration
 
 1. Go to Configuration -> Integrations
@@ -36,7 +44,7 @@ Note: If this is not in HACS yet, you can add this repository manually.
 | Password      | Yes       | The password of the Actual Budget API |
 | Encrypt Password | No    | The password to decrypt the Actual Budget file (if set) |
 | File          | Yes       | The file id of the Actual Budget file |
-| Cert          | No        | The certificate to use for the connection |
+| Cert          | No        | The certificate to use for the connection, you can set it as 'SKIP' to ignore certificate validation|
 
 Example:
 
