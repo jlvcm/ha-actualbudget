@@ -1,16 +1,14 @@
 {
   "domain": "actualbudget",
   "name": "actualbudget Integration",
-  "codeowners": [
-    "@jlvcm"
-  ],
+  "codeowners": ["@jlvcm"],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/jlvcm/ha-actualbudget/blob/main/README.md",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/jlvcm/ha-actualbudget/issues",
   "requirements": [
-    "actualpy @ git+https://github.com/jlvcm/actualpy.git@pydanticv1"
+    "actualpy @ git+https://github.com/jlvcm/actualpy.git@0.6.1-pydanticv1"
   ],
-  "version": "1.0.0"
+  "version": "1.0.1"
 }
