@@ -99,7 +99,7 @@ class ActualBudget:
             budgets_raw = get_budgets(actual.session)
             budgets: Dict[str, Budget] = {}
             for budget_raw in budgets_raw:
-                category = str(budget_raw.category_item.name)
+                category = str(budget_raw.category.name)
                 amount = float(budget_raw.amount) / 100
                 month = str(budget_raw.month)
                 if category not in budgets:
