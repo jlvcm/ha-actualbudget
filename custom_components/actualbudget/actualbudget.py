@@ -130,7 +130,7 @@ class ActualBudget:
             encryption_password=self.encrypt_password,
             file=self.file,
         ) as actual:
-            budgets_raw = get_budget(actual.session, budget_name)
+            budgets_raw = get_budget(actual.session, None, budget_name)
             if not budgets_raw or not budgets_raw[0]:
                 raise Exception(f"budget {budget_name} not found")
             budget: Budget = Budget(name=budgets_raw[0].category_item.name, amounts=[])
