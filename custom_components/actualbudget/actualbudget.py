@@ -133,7 +133,7 @@ class ActualBudget:
             budgets_raw = get_budgets(actual.session, None, budget_name)
             if not budgets_raw or not budgets_raw[0]:
                 raise Exception(f"budget {budget_name} not found")
-            budget: Budget = Budget(name=budgets_raw[0].category_item.name, amounts=[])
+            budget: Budget = Budget(name=budget_name, amounts=[])
             for budget_raw in budgets_raw:
                 amount = float(budget_raw.amount) / 100
                 month = str(budget_raw.month)
