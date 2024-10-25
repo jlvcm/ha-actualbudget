@@ -1,0 +1,36 @@
+{
+  "title": "actualbudget",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Login",
+        "description": "Login til actualbudget",
+        "data": {
+          "endpoint": "actualbudget adresse",
+          "password": "password",
+          "encrypt_password": "krypteringspassword",
+          "file": "fil-id",
+          "cert": "certifikat",
+          "unit": "Enhed"
+        },
+        "data_description": {
+          "endpoint": "Adressen for actualbudget serveren",
+          "password": "Password til actualbudget serveren",
+          "encrypt_password": "Password til kryptering af actualbudget filen",
+          "file": "Fil-id for actualbudget serveren",
+          "cert": "Certifikat til actualbudget serveren. Brug 'SKIP' for at springe certifikatvalidering over",
+          "unit": "Møntfod for actualbudget serveren"
+        }
+      }
+    },
+    "error": {
+      "failed_to_connect": "Forbindelsen fejlede",
+      "failed_cert": "Forbindelsen fejlede: Fejl med certifikat",
+      "failed_file": "Forbindelsen fejlede: Ugyldigt fil-id",
+      "failed_unknown": "Forbindelsen fejlede: Ukendt fejl"
+    },
+    "abort": {
+      "already_configured": "Enheden er allerede sat op"
+    }
+  }
+}
