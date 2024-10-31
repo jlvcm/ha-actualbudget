@@ -20,6 +20,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    CONFIG_PREFIX,
     DEFAULT_ICON,
     DOMAIN,
     CONFIG_ENDPOINT,
@@ -50,6 +51,7 @@ async def async_setup_entry(
     file = config[CONFIG_FILE]
     cert = config.get(CONFIG_CERT)
     unit = config.get(CONFIG_UNIT, "€")
+    prefix = config.get(CONFIG_PREFIX)
 
     if cert == "SKIP":
         cert = False
@@ -73,6 +75,7 @@ async def async_setup_entry(
             account.name,
             account.balance,
             unique_source_id,
+            prefix,
         )
         for account in accounts
     ]
@@ -91,6 +94,7 @@ async def async_setup_entry(
             budget.name,
             budget.amounts,
             unique_source_id,
+            prefix,
         )
         for budget in budgets
     ]
@@ -112,6 +116,7 @@ class actualbudgetAccountSensor(SensorEntity):
         name: str,
         balance: float,
         unique_source_id: str,
+        prefix: str,
     ):
         super().__init__()
         self._api = api
@@ -123,6 +128,7 @@ class actualbudgetAccountSensor(SensorEntity):
         self._file = file
         self._cert = cert
         self._encrypt_password = encrypt_password
+        self._prefix = prefix
 
         self._icon = DEFAULT_ICON
         self._unit_of_measurement = unit
@@ -134,12 +140,15 @@ class actualbudgetAccountSensor(SensorEntity):
     @property
     def name(self) -> str:
         """Return the name of the entity."""
-        return self._name
+        if self._prefix:
+            return f"{self._prefix}_{self._name}"
+        else:
+            return self._name
 
     @property
     def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
-        return f"{DOMAIN}-{self._unique_source_id}-{self._name}".lower()
+        return f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-{self._name}".lower()
 
     @property
     def available(self) -> bool:
@@ -198,6 +207,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         name: str,
         amounts: List[BudgetAmount],
         unique_source_id: str,
+        prefix: str,
     ):
         super().__init__()
         self._api = api
@@ -209,6 +219,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         self._file = file
         self._cert = cert
         self._encrypt_password = encrypt_password
+        self._prefix = prefix
 
         self._icon = DEFAULT_ICON
         self._unit_of_measurement = unit
@@ -219,12 +230,15 @@ class actualbudgetBudgetSensor(SensorEntity):
     @property
     def name(self) -> str:
         """Return the name of the entity."""
-        return self._name
+        if self._prefix:
+            return f"{self._prefix}_{self._name}"
+        else:
+            return self._name
 
     @property
     def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
-        return f"{DOMAIN}-{self._unique_source_id}-{self._name}".lower()
+        return f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-{self._name}".lower()
 
     @property
     def available(self) -> bool:
