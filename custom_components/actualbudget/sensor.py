@@ -148,7 +148,12 @@ class actualbudgetAccountSensor(SensorEntity):
     @property
     def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
-        return f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-{self._name}".lower()
+        if self._prefix:
+            return (
+                f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-{self._name}".lower()
+            )
+        else:
+            return f"{DOMAIN}-{self._unique_source_id}-{self._name}".lower()
 
     @property
     def available(self) -> bool:
@@ -238,7 +243,12 @@ class actualbudgetBudgetSensor(SensorEntity):
     @property
     def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
-        return f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-{self._name}".lower()
+        if self._prefix:
+            return (
+                f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-{self._name}".lower()
+            )
+        else:
+            return f"{DOMAIN}-{self._unique_source_id}-{self._name}".lower()
 
     @property
     def available(self) -> bool:
