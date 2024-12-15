@@ -65,7 +65,8 @@ class ActualBudget:
         """Get accounts."""
         return await self.hass.async_add_executor_job(self.get_accounts_sync)
 
-    def get_accounts_sync(self, session) -> List[Account]:
+    def get_accounts_sync(self) -> List[Account]:
+        session = self.get_session()
         accounts = get_accounts(session)
         return [Account(name=a.name, balance=a.balance) for a in accounts]
 
