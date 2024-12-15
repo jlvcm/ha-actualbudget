@@ -37,6 +37,7 @@ _LOGGER.setLevel(logging.DEBUG)
 
 # Time between updating data from API
 SCAN_INTERVAL = datetime.timedelta(minutes=60)
+MINIMUM_INTERVAL = datetime.timedelta(minutes=1)
 
 
 async def async_setup_entry(
@@ -188,7 +189,7 @@ class actualbudgetAccountSensor(SensorEntity):
         return self._icon
 
     async def async_update(self) -> None:
-        if self._balance_last_updated and datetime.datetime.now() - self._balance_last_updated < SCAN_INTERVAL:
+        if self._balance_last_updated and datetime.datetime.now() - self._balance_last_updated < MINIMUM_INTERVAL:
             return
         """Fetch new state data for the sensor."""
         try:
@@ -305,7 +306,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         return extra_state_attributes
 
     async def async_update(self) -> None:
-        if self._balance_last_updated and datetime.datetime.now() - self._balance_last_updated < SCAN_INTERVAL:
+        if self._balance_last_updated and datetime.datetime.now() - self._balance_last_updated < MINIMUM_INTERVAL:
             return
         """Fetch new state data for the sensor."""
         try:
