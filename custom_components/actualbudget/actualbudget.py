@@ -58,6 +58,7 @@ class ActualBudget:
                 encryption_password=self.encrypt_password,
                 file=self.file,
             )
+            self.actual.__enter__()
         return None if not self.actual or not self.actual.session else self.actual.session
 
     async def get_accounts(self) -> List[Account]:
