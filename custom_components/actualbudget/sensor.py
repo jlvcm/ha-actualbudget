@@ -169,7 +169,7 @@ class actualbudgetAccountSensor(SensorEntity):
 
     @property
     def state(self) -> float:
-        return self._state
+        return self._balance
 
     @property
     def device_class(self):
@@ -196,7 +196,7 @@ class actualbudgetAccountSensor(SensorEntity):
             api = self._api
             account = await api.get_account(self._name)
             if account:
-                self._state = account.balance
+                self._balance = account.balance
             self._balance_last_updated = datetime.datetime.now()
         except Exception as err:
             self._available = False
