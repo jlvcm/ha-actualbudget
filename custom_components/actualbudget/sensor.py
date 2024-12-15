@@ -6,7 +6,7 @@ import logging
 
 from typing import List, Dict, Union
 from urllib.parse import urlparse
-from datetime
+import datetime
 
 from homeassistant.components.sensor import (
     SensorEntity,
