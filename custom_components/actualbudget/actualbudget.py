@@ -1,5 +1,6 @@
 """API to ActualBudget."""
 
+import datetime
 import logging
 from dataclasses import dataclass
 from typing import Dict, List
@@ -19,16 +20,9 @@ _LOGGER.setLevel(logging.DEBUG)
 
 
 @dataclass
-class BudgetAmount:
-    month: str
-    amount: float
-
-
-@dataclass
 class Budget:
     name: str
-    amounts: List[BudgetAmount]
-
+    amount: float = 0
 
 @dataclass
 class Account:
@@ -96,32 +90,25 @@ class ActualBudget:
             encryption_password=self.encrypt_password,
             file=self.file,
         ) as actual:
-            budgets_raw = get_budgets(actual.session)
+            budgets_raw = get_budgets(actual.session, datetime.date.today())
             budgets: Dict[str, Budget] = {}
             for budget_raw in budgets_raw:
                 category = str(budget_raw.category.name)
                 amount = float(budget_raw.amount) / 100
-                month = str(budget_raw.month)
-                if category not in budgets:
-                    budgets[category] = Budget(name=category, amounts=[])
-                budgets[category].amounts.append(
-                    BudgetAmount(month=month, amount=amount)
-                )
-            for category in budgets:
-                budgets[category].amounts = sorted(
-                    budgets[category].amounts, key=lambda x: x.month
-                )
+                budgets[category] = Budget(name=category, amount=amount)
             return list(budgets.values())
 
-    async def get_budget(self, budget_name) -> Budget:
+    async def get_budget(self, budget_name, month=None) -> Budget:
         return await self.hass.async_add_executor_job(
             self.get_budget_sync,
             budget_name,
+            month
         )
 
     def get_budget_sync(
         self,
         budget_name,
+        month=None,
     ) -> Budget:
         with Actual(
             base_url=self.endpoint,
@@ -130,16 +117,12 @@ class ActualBudget:
             encryption_password=self.encrypt_password,
             file=self.file,
         ) as actual:
-            budgets_raw = get_budgets(actual.session, None, budget_name)
+            budgets_raw = get_budgets(actual.session, month, budget_name)
             if not budgets_raw or not budgets_raw[0]:
                 raise Exception(f"budget {budget_name} not found")
-            budget: Budget = Budget(name=budget_name, amounts=[])
-            for budget_raw in budgets_raw:
-                amount = float(budget_raw.amount) / 100
-                month = str(budget_raw.month)
-                budget.amounts.append(BudgetAmount(month=month, amount=amount))
-            budget.amounts = sorted(budget.amounts, key=lambda x: x.month)
-            return budget
+            budget_raw = budgets_raw[0]
+            amount = float(budget_raw.amount) / 100
+            return Budget(name=budget_name, amount=amount)
 
     async def test_connection(self):
         return await self.hass.async_add_executor_job(self.test_connection_sync)
