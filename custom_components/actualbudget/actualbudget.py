@@ -55,7 +55,7 @@ class ActualBudget:
         )
 
     """ Get Actual session if it exists """
-    async def get_session(self):
+    def get_session(self):
         if not self.actual or not self.actual.session:
             self.actual = Actual(
                 base_url=self.endpoint,
@@ -68,7 +68,7 @@ class ActualBudget:
 
     async def get_accounts(self) -> List[Account]:
         """Get accounts."""
-        return await self.hass.async_add_executor_job(self.get_accounts_sync, await self.get_session())
+        return await self.hass.async_add_executor_job(self.get_accounts_sync, self.get_session())
 
     def get_accounts_sync(self, session) -> List[Account]:
         accounts = get_accounts(session)
@@ -78,7 +78,7 @@ class ActualBudget:
         return await self.hass.async_add_executor_job(
             self.get_account_sync,
             account_name,
-            await self.get_session(),
+            self.get_session(),
         )
 
     def get_account_sync(
@@ -93,7 +93,7 @@ class ActualBudget:
 
     async def get_budgets(self) -> List[Budget]:
         """Get budgets."""
-        return await self.hass.async_add_executor_job(self.get_budgets_sync, await self.get_session())
+        return await self.hass.async_add_executor_job(self.get_budgets_sync, self.get_session())
 
     def get_budgets_sync(self, session) -> List[Budget]:
         budgets_raw = get_budgets(session)
@@ -117,7 +117,7 @@ class ActualBudget:
         return await self.hass.async_add_executor_job(
             self.get_budget_sync,
             budget_name,
-            await self.get_session(),
+            self.get_session(),
         )
 
     def get_budget_sync(
