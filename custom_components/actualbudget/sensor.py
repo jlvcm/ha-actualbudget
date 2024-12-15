@@ -6,7 +6,7 @@ import logging
 
 from typing import List, Dict, Union
 from urllib.parse import urlparse
-import datetime
+from datetime
 
 from homeassistant.components.sensor import (
     SensorEntity,
@@ -95,7 +95,7 @@ async def async_setup_entry(
             cert,
             encrypt_password,
             budget.name,
-            budget.amount,
+            budget.amounts,
             unique_source_id,
             prefix,
             lastUpdate,
@@ -219,7 +219,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         cert: str,
         encrypt_password: str | None,
         name: str,
-        amount: float,
+        amounts: List[BudgetAmount],
         unique_source_id: str,
         prefix: str,
         balance_last_updated: datetime.datetime,
@@ -227,7 +227,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         super().__init__()
         self._api = api
         self._name = name
-        self._amount = amount
+        self._amounts = amounts
         self._unique_source_id = unique_source_id
         self._endpoint = endpoint
         self._password = password
@@ -258,7 +258,8 @@ class actualbudgetBudgetSensor(SensorEntity):
             return (
                 f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-{self._name}".lower()
             )
-        return f"{DOMAIN}-{self._unique_source_id}-{self._name}".lower()
+        else:
+            return f"{DOMAIN}-{self._unique_source_id}-{self._name}".lower()
 
     @property
     def available(self) -> bool:
@@ -267,7 +268,8 @@ class actualbudgetBudgetSensor(SensorEntity):
 
     @property
     def state(self) -> float:
-        return self._amount
+        current_month = self._amounts[-1]
+        return current_month.amount
 
     @property
     def device_class(self):
@@ -289,6 +291,17 @@ class actualbudgetBudgetSensor(SensorEntity):
     @property
     def extra_state_attributes(self) -> Dict[str, Union[str, float]]:
         extra_state_attributes = {}
+        current_month = self._amounts[-1].month
+        if current_month:
+            extra_state_attributes["current_month"] = current_month
+        if len(self._amounts) > 1:
+            extra_state_attributes["previous_month"] = self._amounts[-2].month
+            extra_state_attributes["previous_amount"] = self._amounts[-2].amount
+            total = 0
+            for amount in self._amounts:
+                total += amount.amount
+            extra_state_attributes["total_amount"] = total
+
         return extra_state_attributes
 
     async def async_update(self) -> None:
@@ -297,10 +310,10 @@ class actualbudgetBudgetSensor(SensorEntity):
         """Fetch new state data for the sensor."""
         try:
             api = self._api
-            budget = await api.get_budget(self._name, datetime.date.today())
+            budget = await api.get_budget(self._name)
             self._balance_last_updated = datetime.datetime.now()
             if budget:
-                self._amount = budget.amount
+                self._amounts = budget.amounts
         except Exception as err:
             self._available = False
             _LOGGER.exception(
