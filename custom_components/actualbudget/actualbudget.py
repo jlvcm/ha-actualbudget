@@ -46,6 +46,7 @@ class ActualBudget:
         self.file = file
         self.cert = cert
         self.encrypt_password = encrypt_password
+        self.actual = None
 
     """ Get Actual session if it exists """
     def get_session(self):
