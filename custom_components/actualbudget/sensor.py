@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from typing import List, Dict, Union
+from typing import Dict, Union
 from urllib.parse import urlparse
 import datetime
 
@@ -30,7 +30,7 @@ from .const import (
     CONFIG_CERT,
     CONFIG_ENCRYPT_PASSWORD,
 )
-from .actualbudget import ActualBudget, BudgetAmount
+from .actualbudget import ActualBudget
 
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
