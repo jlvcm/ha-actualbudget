@@ -63,7 +63,7 @@ class ActualBudget:
 
     async def get_accounts(self) -> List[Account]:
         """Get accounts."""
-        return await self.hass.async_add_executor_job(self.get_accounts_sync, self.get_session())
+        return await self.hass.async_add_executor_job(self.get_accounts_sync)
 
     def get_accounts_sync(self, session) -> List[Account]:
         accounts = get_accounts(session)
@@ -73,14 +73,13 @@ class ActualBudget:
         return await self.hass.async_add_executor_job(
             self.get_account_sync,
             account_name,
-            self.get_session(),
         )
 
     def get_account_sync(
         self,
         account_name,
-        session,
     ) -> Account:
+        session = self.get_session()
         account = get_account(session, account_name)
         if not account:
             raise Exception(f"Account {account_name} not found")
@@ -88,9 +87,10 @@ class ActualBudget:
 
     async def get_budgets(self) -> List[Budget]:
         """Get budgets."""
-        return await self.hass.async_add_executor_job(self.get_budgets_sync, self.get_session())
+        return await self.hass.async_add_executor_job(self.get_budgets_sync)
 
-    def get_budgets_sync(self, session) -> List[Budget]:
+    def get_budgets_sync(self) -> List[Budget]:
+        session = self.get_session()
         budgets_raw = get_budgets(session)
         budgets: Dict[str, Budget] = {}
         for budget_raw in budgets_raw:
@@ -112,14 +112,13 @@ class ActualBudget:
         return await self.hass.async_add_executor_job(
             self.get_budget_sync,
             budget_name,
-            self.get_session(),
         )
 
     def get_budget_sync(
         self,
         budget_name,
-        session,
     ) -> Budget:
+        session = self.get_session()
         budgets_raw = get_budgets(session, None, budget_name)
         if not budgets_raw or not budgets_raw[0]:
             raise Exception(f"budget {budget_name} not found")
