@@ -63,6 +63,7 @@ async def async_setup_entry(
     unique_source_id = f"{domain}_{port}_{file}"
 
     accounts = await api.get_accounts()
+    lastUpdate = datetime.datetime.now()
     accounts = [
         actualbudgetAccountSensor(
             api,
@@ -76,12 +77,14 @@ async def async_setup_entry(
             account.balance,
             unique_source_id,
             prefix,
+            lastUpdate,
         )
         for account in accounts
     ]
     async_add_entities(accounts, update_before_add=True)
 
     budgets = await api.get_budgets()
+    lastUpdate = datetime.datetime.now()
     budgets = [
         actualbudgetBudgetSensor(
             api,
@@ -95,6 +98,7 @@ async def async_setup_entry(
             budget.amount,
             unique_source_id,
             prefix,
+            lastUpdate,
         )
         for budget in budgets
     ]
@@ -117,6 +121,7 @@ class actualbudgetAccountSensor(SensorEntity):
         balance: float,
         unique_source_id: str,
         prefix: str,
+        balance_last_updated: datetime.datetime,
     ):
         super().__init__()
         self._api = api
@@ -136,6 +141,7 @@ class actualbudgetAccountSensor(SensorEntity):
         self._state_class = SensorStateClass.MEASUREMENT
         self._state = None
         self._available = True
+        self._balance_last_updated = balance_last_updated
 
     @property
     def name(self) -> str:
@@ -182,12 +188,15 @@ class actualbudgetAccountSensor(SensorEntity):
         return self._icon
 
     async def async_update(self) -> None:
+        if self._balance_last_updated and datetime.datetime.now() - self._balance_last_updated < SCAN_INTERVAL:
+            return
         """Fetch new state data for the sensor."""
         try:
             api = self._api
             account = await api.get_account(self._name)
             if account:
                 self._state = account.balance
+            self._balance_last_updated = datetime.datetime.now()
         except Exception as err:
             self._available = False
             _LOGGER.exception(
@@ -213,6 +222,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         amount: float,
         unique_source_id: str,
         prefix: str,
+        balance_last_updated: datetime.datetime,
     ):
         super().__init__()
         self._api = api
@@ -231,6 +241,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         self._device_class = SensorDeviceClass.MONETARY
         self._state_class = SensorStateClass.MEASUREMENT
         self._available = True
+        self._balance_last_updated = balance_last_updated
 
     @property
     def name(self) -> str:
@@ -281,10 +292,13 @@ class actualbudgetBudgetSensor(SensorEntity):
         return extra_state_attributes
 
     async def async_update(self) -> None:
+        if self._balance_last_updated and datetime.datetime.now() - self._balance_last_updated < SCAN_INTERVAL:
+            return
         """Fetch new state data for the sensor."""
         try:
             api = self._api
             budget = await api.get_budget(self._name, datetime.date.today())
+            self._balance_last_updated = datetime.datetime.now()
             if budget:
                 self._amount = budget.amount
         except Exception as err:
