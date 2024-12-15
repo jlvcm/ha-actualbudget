@@ -12,10 +12,13 @@ from actual.exceptions import (
 )
 from actual.queries import get_accounts, get_account, get_budgets
 from requests.exceptions import ConnectionError, SSLError
+import datetime
 
 
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
+
+SESSION_TIMEOUT = datetime.timedelta(minutes=30)
 
 
 @dataclass
@@ -47,10 +50,16 @@ class ActualBudget:
         self.cert = cert
         self.encrypt_password = encrypt_password
         self.actual = None
+        self.sessionStartedAt = datetime.datetime.now()
 
     """ Get Actual session if it exists """
     def get_session(self):
-        if not self.actual or not self.actual.session:
+        if not self.actual or not self.actual.session or self.sessionStartedAt + SESSION_TIMEOUT < datetime.datetime.now():
+            if self.actual:
+                try:
+                    self.actual.__exit__(None, None, None)
+                except Exception as e:
+                    _LOGGER.error("Error closing session: %s", e)
             self.actual = Actual(
                 base_url=self.endpoint,
                 password=self.password,
@@ -59,6 +68,7 @@ class ActualBudget:
                 file=self.file,
             )
             self.actual.__enter__()
+            self.sessionStartedAt = datetime.datetime.now()
         return None if not self.actual or not self.actual.session else self.actual.session
 
     async def get_accounts(self) -> List[Account]:
