@@ -1,5 +1,6 @@
 """API to ActualBudget."""
 
+from decimal import Decimal
 import logging
 from dataclasses import dataclass
 from typing import Dict, List
@@ -24,7 +25,7 @@ SESSION_TIMEOUT = datetime.timedelta(minutes=30)
 @dataclass
 class BudgetAmount:
     month: str
-    amount: float
+    amount: float | None
 
 
 @dataclass
@@ -35,8 +36,8 @@ class Budget:
 
 @dataclass
 class Account:
-    name: str
-    balance: float
+    name: str | None
+    balance: Decimal
 
 
 class ActualBudget:
@@ -53,23 +54,49 @@ class ActualBudget:
         self.sessionStartedAt = datetime.datetime.now()
 
     """ Get Actual session if it exists """
+
     def get_session(self):
-        if not self.actual or not self.actual.session or self.sessionStartedAt + SESSION_TIMEOUT < datetime.datetime.now():
-            if self.actual:
-                try:
-                    self.actual.__exit__(None, None, None)
-                except Exception as e:
-                    _LOGGER.error("Error closing session: %s", e)
-            self.actual = Actual(
-                base_url=self.endpoint,
-                password=self.password,
-                cert=self.cert,
-                encryption_password=self.encrypt_password,
-                file=self.file,
-            )
-            self.actual.__enter__()
+        # Invalidate session if it is too old
+        if (
+            self.actual
+            and self.sessionStartedAt + SESSION_TIMEOUT < datetime.datetime.now()
+        ):
+            try:
+                self.actual.__exit__(None, None, None)
+            except Exception as e:
+                _LOGGER.error("Error closing session: %s", e)
+            self.actual = None
+
+        # Check if current session is valid, and if not, invalidate it
+        if self.actual:
+            try:
+                result = self.actual.validate()
+                if not result.data.validated:
+                    raise Exception("Session not validated")
+            except Exception as e:
+                _LOGGER.error("Error validating session: %s", e)
+                self.actual = None
+
+        # Create session if it does not exist
+        if not self.actual:
+            self.actual = self.create_session()
             self.sessionStartedAt = datetime.datetime.now()
-        return None if not self.actual or not self.actual.session else self.actual.session
+
+        return self.actual.session
+
+    def create_session(self):
+        actual = Actual(
+            base_url=self.endpoint,
+            password=self.password,
+            cert=self.cert,
+            encryption_password=self.encrypt_password,
+            file=self.file,
+        )
+        actual.__enter__()
+        result = actual.validate()
+        if not result.data.validated:
+            raise Exception("Session not validated")
+        return actual
 
     async def get_accounts(self) -> List[Account]:
         """Get accounts."""
@@ -106,13 +133,11 @@ class ActualBudget:
         budgets: Dict[str, Budget] = {}
         for budget_raw in budgets_raw:
             category = str(budget_raw.category.name)
-            amount = float(budget_raw.amount) / 100
+            amount = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
             month = str(budget_raw.month)
             if category not in budgets:
                 budgets[category] = Budget(name=category, amounts=[])
-            budgets[category].amounts.append(
-                BudgetAmount(month=month, amount=amount)
-            )
+            budgets[category].amounts.append(BudgetAmount(month=month, amount=amount))
         for category in budgets:
             budgets[category].amounts = sorted(
                 budgets[category].amounts, key=lambda x: x.month
@@ -135,7 +160,7 @@ class ActualBudget:
             raise Exception(f"budget {budget_name} not found")
         budget: Budget = Budget(name=budget_name, amounts=[])
         for budget_raw in budgets_raw:
-            amount = float(budget_raw.amount) / 100
+            amount = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
             month = str(budget_raw.month)
             budget.amounts.append(BudgetAmount(month=month, amount=amount))
         budget.amounts = sorted(budget.amounts, key=lambda x: x.month)

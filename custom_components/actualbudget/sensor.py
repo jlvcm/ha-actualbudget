@@ -189,7 +189,10 @@ class actualbudgetAccountSensor(SensorEntity):
         return self._icon
 
     async def async_update(self) -> None:
-        if self._balance_last_updated and datetime.datetime.now() - self._balance_last_updated < MINIMUM_INTERVAL:
+        if (
+            self._balance_last_updated
+            and datetime.datetime.now() - self._balance_last_updated < MINIMUM_INTERVAL
+        ):
             return
         """Fetch new state data for the sensor."""
         try:
@@ -247,20 +250,18 @@ class actualbudgetBudgetSensor(SensorEntity):
     @property
     def name(self) -> str:
         """Return the name of the entity."""
+        budgetName = f"budget_{self._name}"
         if self._prefix:
-            return f"{self._prefix}_{self._name}"
-        else:
-            return self._name
+            return f"{self._prefix}_{budgetName}"
+        return budgetName
 
     @property
     def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
         if self._prefix:
-            return (
-                f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-{self._name}".lower()
-            )
+            return f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-budget-{self._name}".lower()
         else:
-            return f"{DOMAIN}-{self._unique_source_id}-{self._name}".lower()
+            return f"{DOMAIN}-{self._unique_source_id}-budget-{self._name}".lower()
 
     @property
     def available(self) -> bool:
@@ -268,7 +269,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         return self._available
 
     @property
-    def state(self) -> float:
+    def state(self) -> float | None:
         current_month = self._amounts[-1]
         return current_month.amount
 
@@ -300,13 +301,16 @@ class actualbudgetBudgetSensor(SensorEntity):
             extra_state_attributes["previous_amount"] = self._amounts[-2].amount
             total = 0
             for amount in self._amounts:
-                total += amount.amount
+                total += amount.amount if amount.amount else 0
             extra_state_attributes["total_amount"] = total
 
         return extra_state_attributes
 
     async def async_update(self) -> None:
-        if self._balance_last_updated and datetime.datetime.now() - self._balance_last_updated < MINIMUM_INTERVAL:
+        if (
+            self._balance_last_updated
+            and datetime.datetime.now() - self._balance_last_updated < MINIMUM_INTERVAL
+        ):
             return
         """Fetch new state data for the sensor."""
         try:
