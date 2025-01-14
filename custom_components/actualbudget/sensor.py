@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 import logging
 
 from typing import List, Dict, Union
@@ -97,6 +98,7 @@ async def async_setup_entry(
             encrypt_password,
             budget.name,
             budget.amounts,
+            budget.balance,
             unique_source_id,
             prefix,
             lastUpdate,
@@ -224,6 +226,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         encrypt_password: str | None,
         name: str,
         amounts: List[BudgetAmount],
+        balance: float,
         unique_source_id: str,
         prefix: str,
         balance_last_updated: datetime.datetime,
@@ -232,6 +235,7 @@ class actualbudgetBudgetSensor(SensorEntity):
         self._api = api
         self._name = name
         self._amounts = amounts
+        self._balance = balance
         self._unique_source_id = unique_source_id
         self._endpoint = endpoint
         self._password = password
@@ -269,11 +273,6 @@ class actualbudgetBudgetSensor(SensorEntity):
         return self._available
 
     @property
-    def state(self) -> float | None:
-        current_month = self._amounts[-1]
-        return current_month.amount
-
-    @property
     def device_class(self):
         return self._device_class
 
@@ -290,12 +289,21 @@ class actualbudgetBudgetSensor(SensorEntity):
     def icon(self):
         return self._icon
 
+
+    @property
+    def state(self) -> float | None:
+        total = 0
+        for amount in self._amounts:
+            total += amount.amount if amount.amount else 0
+        return round(self._balance + Decimal(total), 2)
+
     @property
     def extra_state_attributes(self) -> Dict[str, Union[str, float]]:
         extra_state_attributes = {}
         current_month = self._amounts[-1].month
         if current_month:
             extra_state_attributes["current_month"] = current_month
+            extra_state_attributes["current_amount"] = self._amounts[-1].amount
         if len(self._amounts) > 1:
             extra_state_attributes["previous_month"] = self._amounts[-2].month
             extra_state_attributes["previous_amount"] = self._amounts[-2].amount
@@ -319,6 +327,7 @@ class actualbudgetBudgetSensor(SensorEntity):
             self._balance_last_updated = datetime.datetime.now()
             if budget:
                 self._amounts = budget.amounts
+                self._balance = budget.balance
         except Exception as err:
             self._available = False
             _LOGGER.exception(
