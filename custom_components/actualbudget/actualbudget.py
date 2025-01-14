@@ -11,7 +11,7 @@ from actual.exceptions import (
     InvalidZipFile,
     AuthorizationError,
 )
-from actual.queries import get_accounts, get_account, get_budgets
+from actual.queries import get_accounts, get_account, get_budgets, get_category
 from requests.exceptions import ConnectionError, SSLError
 import datetime
 
@@ -134,17 +134,16 @@ class ActualBudget:
         budgets: Dict[str, Budget] = {}
         for budget_raw in budgets_raw:
             category = str(budget_raw.category.name)
-            balance = budget_raw.category.balance
             amount = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
             month = str(budget_raw.month)
             if category not in budgets:
                 budgets[category] = Budget(name=category, amounts=[], balance=0)
             budgets[category].amounts.append(BudgetAmount(month=month, amount=amount))
-            budgets[category].balance = balance
         for category in budgets:
             budgets[category].amounts = sorted(
                 budgets[category].amounts, key=lambda x: x.month
             )
+            budgets[category].balance = get_category(session, category).balance
         return list(budgets.values())
 
     async def get_budget(self, budget_name) -> Budget:
@@ -167,6 +166,7 @@ class ActualBudget:
             month = str(budget_raw.month)
             budget.amounts.append(BudgetAmount(month=month, amount=amount))
         budget.amounts = sorted(budget.amounts, key=lambda x: x.month)
+        budget.balance = get_category(session, budget_name).balance
         return budget
 
     async def test_connection(self):
