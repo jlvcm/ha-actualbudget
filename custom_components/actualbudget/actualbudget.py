@@ -32,6 +32,7 @@ class BudgetAmount:
 class Budget:
     name: str
     amounts: List[BudgetAmount]
+    balance: Decimal
 
 
 @dataclass
@@ -133,11 +134,13 @@ class ActualBudget:
         budgets: Dict[str, Budget] = {}
         for budget_raw in budgets_raw:
             category = str(budget_raw.category.name)
+            balance = budget_raw.category.balance
             amount = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
             month = str(budget_raw.month)
             if category not in budgets:
-                budgets[category] = Budget(name=category, amounts=[])
+                budgets[category] = Budget(name=category, amounts=[], balance=0)
             budgets[category].amounts.append(BudgetAmount(month=month, amount=amount))
+            budgets[category].balance = balance
         for category in budgets:
             budgets[category].amounts = sorted(
                 budgets[category].amounts, key=lambda x: x.month
@@ -158,7 +161,7 @@ class ActualBudget:
         budgets_raw = get_budgets(session, None, budget_name)
         if not budgets_raw or not budgets_raw[0]:
             raise Exception(f"budget {budget_name} not found")
-        budget: Budget = Budget(name=budget_name, amounts=[])
+        budget: Budget = Budget(name=budget_name, amounts=[], balance=0)
         for budget_raw in budgets_raw:
             amount = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
             month = str(budget_raw.month)
