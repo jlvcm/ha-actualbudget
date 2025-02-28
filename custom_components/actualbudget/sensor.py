@@ -294,21 +294,23 @@ class actualbudgetBudgetSensor(SensorEntity):
     def state(self) -> float | None:
         total = 0
         for amount in self._amounts:
-            total += amount.amount if amount.amount else 0
+            if datetime.datetime.strptime(amount.month, '%Y%m') <= datetime.datetime.now():
+                total += amount.amount if amount.amount else 0
         return round(self._balance + Decimal(total), 2)
 
     @property
     def extra_state_attributes(self) -> Dict[str, Union[str, float]]:
         extra_state_attributes = {}
-        current_month = self._amounts[-1].month
+        amounts = [amount for amount in self._amounts if datetime.datetime.strptime(amount.month, '%Y%m') <= datetime.datetime.now()]
+        current_month = amounts[-1].month
         if current_month:
             extra_state_attributes["current_month"] = current_month
-            extra_state_attributes["current_amount"] = self._amounts[-1].amount
-        if len(self._amounts) > 1:
-            extra_state_attributes["previous_month"] = self._amounts[-2].month
-            extra_state_attributes["previous_amount"] = self._amounts[-2].amount
+            extra_state_attributes["current_amount"] = amounts[-1].amount
+        if len(amounts) > 1:
+            extra_state_attributes["previous_month"] = amounts[-2].month
+            extra_state_attributes["previous_amount"] = amounts[-2].amount
             total = 0
-            for amount in self._amounts:
+            for amount in amounts:
                 total += amount.amount if amount.amount else 0
             extra_state_attributes["total_amount"] = total
 
