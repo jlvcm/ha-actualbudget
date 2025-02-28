@@ -130,7 +130,7 @@ class ActualBudget:
 
     def get_budgets_sync(self) -> List[Budget]:
         session = self.get_session()
-        budgets_raw = get_budgets(session)
+        budgets_raw = get_budgets(session, datetime.date.today())
         budgets: Dict[str, Budget] = {}
         for budget_raw in budgets_raw:
             if not budget_raw.category:
