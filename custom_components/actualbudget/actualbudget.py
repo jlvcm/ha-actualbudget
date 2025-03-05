@@ -14,6 +14,7 @@ from actual.exceptions import (
 from actual.queries import get_accounts, get_account, get_budgets, get_category
 from requests.exceptions import ConnectionError, SSLError
 import datetime
+import threading
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,37 +54,40 @@ class ActualBudget:
         self.encrypt_password = encrypt_password
         self.actual = None
         self.sessionStartedAt = datetime.datetime.now()
+        self._lock = threading.Lock()
 
     """ Get Actual session if it exists """
 
     def get_session(self):
-        # Invalidate session if it is too old
-        if (
-            self.actual
-            and self.sessionStartedAt + SESSION_TIMEOUT < datetime.datetime.now()
-        ):
-            try:
-                self.actual.__exit__(None, None, None)
-            except Exception as e:
-                _LOGGER.error("Error closing session: %s", e)
-            self.actual = None
-
-        # Check if current session is valid, and if not, invalidate it
-        if self.actual:
-            try:
-                result = self.actual.validate()
-                if not result.data.validated:
-                    raise Exception("Session not validated")
-            except Exception as e:
-                _LOGGER.error("Error validating session: %s", e)
+        """Get Actual session if it exists, or create a new one safely."""
+        with self._lock:  # Ensure only one thread enters at a time
+            # Invalidate session if it is too old
+            if (
+                self.actual
+                and self.sessionStartedAt + SESSION_TIMEOUT < datetime.datetime.now()
+            ):
+                try:
+                    self.actual.__exit__(None, None, None)
+                except Exception as e:
+                    _LOGGER.error("Error closing session: %s", e)
                 self.actual = None
 
-        # Create session if it does not exist
-        if not self.actual:
-            self.actual = self.create_session()
-            self.sessionStartedAt = datetime.datetime.now()
+            # Validate existing session
+            if self.actual:
+                try:
+                    result = self.actual.validate()
+                    if not result.data.validated:
+                        raise Exception("Session not validated")
+                except Exception as e:
+                    _LOGGER.error("Error validating session: %s", e)
+                    self.actual = None
 
-        return self.actual.session
+            # Create a new session if needed
+            if not self.actual:
+                self.actual = self.create_session()
+                self.sessionStartedAt = datetime.datetime.now()
+
+        return self.actual.session  # Return session after lock is released
 
     def create_session(self):
         actual = Actual(
