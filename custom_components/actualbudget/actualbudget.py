@@ -92,6 +92,7 @@ class ActualBudget:
             cert=self.cert,
             encryption_password=self.encrypt_password,
             file=self.file,
+            data_dir=self.hass.config.path("actualbudget"),
         )
         actual.__enter__()
         result = actual.validate()
@@ -139,13 +140,18 @@ class ActualBudget:
             amount = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
             month = str(budget_raw.month)
             if category not in budgets:
-                budgets[category] = Budget(name=category, amounts=[], balance=0)
+                budgets[category] = Budget(
+                    name=category, amounts=[], balance=Decimal(0)
+                )
             budgets[category].amounts.append(BudgetAmount(month=month, amount=amount))
         for category in budgets:
             budgets[category].amounts = sorted(
                 budgets[category].amounts, key=lambda x: x.month
             )
-            budgets[category].balance = get_category(session, category).balance
+            category_data = get_category(session, category)
+            budgets[category].balance = (
+                category_data.balance if category_data else Decimal(0)
+            )
         return list(budgets.values())
 
     async def get_budget(self, budget_name) -> Budget:
@@ -162,13 +168,14 @@ class ActualBudget:
         budgets_raw = get_budgets(session, None, budget_name)
         if not budgets_raw or not budgets_raw[0]:
             raise Exception(f"budget {budget_name} not found")
-        budget: Budget = Budget(name=budget_name, amounts=[], balance=0)
+        budget: Budget = Budget(name=budget_name, amounts=[], balance=Decimal(0))
         for budget_raw in budgets_raw:
             amount = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
             month = str(budget_raw.month)
             budget.amounts.append(BudgetAmount(month=month, amount=amount))
         budget.amounts = sorted(budget.amounts, key=lambda x: x.month)
-        budget.balance = get_category(session, budget_name).balance
+        category_data = get_category(session, budget_name)
+        budget.balance = category_data.balance if category_data else Decimal(0)
         return budget
 
     async def test_connection(self):
