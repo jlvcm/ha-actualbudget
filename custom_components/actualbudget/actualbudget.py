@@ -11,7 +11,7 @@ from actual.exceptions import (
     InvalidZipFile,
     AuthorizationError,
 )
-from actual.queries import get_accounts, get_account, get_budgets, get_category
+from actual.queries import get_accounts, get_account, get_budgets, get_category, get_transactions
 from requests.exceptions import ConnectionError, SSLError
 import datetime
 import threading
@@ -181,6 +181,16 @@ class ActualBudget:
         category_data = get_category(session, budget_name)
         budget.balance = category_data.balance if category_data else Decimal(0)
         return budget
+
+    async def get_uncategorized_transactions_count(self) -> int:
+        """Get count of uncategorized transactions."""
+        return await self.hass.async_add_executor_job(self.get_uncategorized_transactions_count_sync)
+
+    def get_uncategorized_transactions_count_sync(self) -> int:
+        """Get count of uncategorized transactions synchronously."""
+        session = self.get_session()
+        transactions = get_transactions(session)
+        return sum(1 for tx in transactions if tx.category is None)
 
     async def test_connection(self):
         return await self.hass.async_add_executor_job(self.test_connection_sync)

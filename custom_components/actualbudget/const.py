@@ -3,6 +3,7 @@ PLATFORM = "sensor"
 DOMAIN_DATA = f"{DOMAIN}_data"
 
 DEFAULT_ICON = "mdi:bank"
+DEFAULT_ICON_UNCATEGORIZED = "mdi:help-circle-outline"
 
 CONFIG_ENDPOINT = "endpoint"
 CONFIG_PASSWORD = "password"

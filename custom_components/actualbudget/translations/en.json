@@ -32,5 +32,10 @@
     "abort": {
       "already_configured": "Device is already configured"
     }
+  },
+  "entity": {
+    "sensor": {
+      "uncategorized_transactions": "Uncategorized Transactions"
+    }
   }
 }

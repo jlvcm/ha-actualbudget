@@ -32,5 +32,10 @@
     "abort": {
       "already_configured": "Enheden er allerede sat op"
     }
+  },
+  "entity": {
+    "sensor": {
+      "uncategorized_transactions": "Ikke-kategoriserede transaktioner"
+    }
   }
 }

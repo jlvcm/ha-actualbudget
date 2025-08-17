@@ -23,6 +23,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
     CONFIG_PREFIX,
     DEFAULT_ICON,
+    DEFAULT_ICON_UNCATEGORIZED,
     DOMAIN,
     CONFIG_ENDPOINT,
     CONFIG_PASSWORD,
@@ -106,6 +107,18 @@ async def async_setup_entry(
         for budget in budgets
     ]
     async_add_entities(budgets, update_before_add=True)
+
+    # Add uncategorized transactions count sensor
+    uncat_count = await api.get_uncategorized_transactions_count()
+    lastUpdate = datetime.datetime.now()
+    uncat_sensor = actualbudgetUncategorizedTransactionsSensor(
+        api,
+        unit,
+        unique_source_id,
+        prefix,
+        lastUpdate,
+    )
+    async_add_entities([uncat_sensor], update_before_add=True)
 
 
 class actualbudgetAccountSensor(SensorEntity):
@@ -335,5 +348,90 @@ class actualbudgetBudgetSensor(SensorEntity):
             _LOGGER.exception(
                 "Unknown error updating data from ActualBudget API to budget %s. %s",
                 self._name,
+                err,
+            )
+
+
+class actualbudgetUncategorizedTransactionsSensor(SensorEntity):
+    """Representation of uncategorized transactions count sensor."""
+
+    def __init__(
+        self,
+        api: ActualBudget,
+        unit: str,
+        unique_source_id: str,
+        prefix: str,
+        last_updated: datetime.datetime,
+    ):
+        super().__init__()
+        self._api = api
+        self._unique_source_id = unique_source_id
+        self._prefix = prefix
+        self._unit = unit
+
+        self._icon = DEFAULT_ICON_UNCATEGORIZED
+        self._unit_of_measurement = "transactions"
+        self._device_class = None
+        self._state_class = SensorStateClass.MEASUREMENT
+        self._state = None
+        self._available = True
+        self._last_updated = last_updated
+
+    @property
+    def name(self) -> str:
+        """Return the name of the entity."""
+        if self._prefix:
+            return f"{self._prefix}_uncategorized_transactions"
+        else:
+            return "uncategorized_transactions"
+
+    @property
+    def unique_id(self) -> str:
+        """Return the unique ID of the sensor."""
+        if self._prefix:
+            return f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-uncategorized-transactions".lower()
+        else:
+            return f"{DOMAIN}-{self._unique_source_id}-uncategorized-transactions".lower()
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self._available
+
+    @property
+    def state(self) -> int | None:
+        return self._state
+
+    @property
+    def device_class(self):
+        return self._device_class
+
+    @property
+    def state_class(self):
+        return self._state_class
+
+    @property
+    def unit_of_measurement(self):
+        """Return the unit the value is expressed in."""
+        return self._unit_of_measurement
+
+    @property
+    def icon(self):
+        return self._icon
+
+    async def async_update(self) -> None:
+        if (
+            self._last_updated
+            and datetime.datetime.now() - self._last_updated < MINIMUM_INTERVAL
+        ):
+            return
+        """Fetch new state data for the sensor."""
+        try:
+            self._state = await self._api.get_uncategorized_transactions_count()
+            self._last_updated = datetime.datetime.now()
+        except Exception as err:
+            self._available = False
+            _LOGGER.exception(
+                "Unknown error updating data from ActualBudget API for uncategorized transactions count. %s",
                 err,
             )
