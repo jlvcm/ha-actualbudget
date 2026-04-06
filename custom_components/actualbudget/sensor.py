@@ -306,12 +306,16 @@ class actualbudgetBudgetSensor(SensorEntity):
         current = months[-1]
         extra_state_attributes["current_month"] = current.month
         extra_state_attributes["current_budgeted"] = current.budgeted
+        extra_state_attributes["current_amount"] = current.budgeted  # backward compat
         extra_state_attributes["current_spent"] = current.spent
         if len(months) > 1:
             previous = months[-2]
             extra_state_attributes["previous_month"] = previous.month
             extra_state_attributes["previous_budgeted"] = previous.budgeted
+            extra_state_attributes["previous_amount"] = previous.budgeted  # backward compat
             extra_state_attributes["previous_spent"] = previous.spent
+            total = sum(m.budgeted or 0 for m in months)
+            extra_state_attributes["total_amount"] = total  # backward compat
         return extra_state_attributes
 
     async def async_update(self) -> None:
