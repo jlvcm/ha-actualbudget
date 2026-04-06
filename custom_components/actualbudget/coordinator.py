@@ -27,6 +27,14 @@ class ActualBudgetCoordinator(DataUpdateCoordinator[BudgetData]):
         )
         self.api = api
         self.last_refresh: datetime | None = None
+        self.syncing: bool = False
+
+    def set_syncing(self, value: bool) -> None:
+        """Update the syncing flag and push to listeners immediately."""
+        if self.syncing == value:
+            return
+        self.syncing = value
+        self.async_update_listeners()
 
     async def _async_update_data(self) -> BudgetData:
         try:

@@ -24,6 +24,19 @@ from .coordinator import ActualBudgetCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
+async def _run_sync(
+    coordinator: ActualBudgetCoordinator,
+    action,
+) -> None:
+    """Run a sync action with visible in-progress state for dashboard cards."""
+    coordinator.set_syncing(True)
+    try:
+        await action()
+        await coordinator.async_refresh()
+    finally:
+        coordinator.set_syncing(False)
+
+
 @callback
 def _get_entry_data(hass: HomeAssistant, config_entry_id: str) -> dict:
     """Return the stored api + coordinator for a loaded config entry."""
@@ -63,24 +76,20 @@ def register_actions(hass: HomeAssistant) -> None:
 async def handle_bank_sync(call: ServiceCall) -> ServiceResponse:
     """Handle the bank_sync service action call."""
     entry_id = call.data[ATTR_CONFIG_ENTRY_ID]
-    _LOGGER.warning("actualbudget.bank_sync invoked for entry %s", entry_id)
+    _LOGGER.debug("actualbudget.bank_sync invoked for entry %s", entry_id)
     entry_data = _get_entry_data(call.hass, entry_id)
     api: ActualBudget = entry_data["api"]
     coordinator: ActualBudgetCoordinator = entry_data["coordinator"]
-
-    await api.run_bank_sync()
-    await coordinator.async_refresh()
-    _LOGGER.warning("actualbudget.bank_sync completed for entry %s", entry_id)
+    await _run_sync(coordinator, api.run_bank_sync)
+    _LOGGER.debug("actualbudget.bank_sync completed for entry %s", entry_id)
 
 
 async def handle_budget_sync(call: ServiceCall) -> ServiceResponse:
     """Handle the budget_sync service action call."""
     entry_id = call.data[ATTR_CONFIG_ENTRY_ID]
-    _LOGGER.warning("actualbudget.budget_sync invoked for entry %s", entry_id)
+    _LOGGER.debug("actualbudget.budget_sync invoked for entry %s", entry_id)
     entry_data = _get_entry_data(call.hass, entry_id)
     api: ActualBudget = entry_data["api"]
     coordinator: ActualBudgetCoordinator = entry_data["coordinator"]
-
-    await api.run_budget_sync()
-    await coordinator.async_refresh()
-    _LOGGER.warning("actualbudget.budget_sync completed for entry %s", entry_id)
+    await _run_sync(coordinator, api.run_budget_sync)
+    _LOGGER.debug("actualbudget.budget_sync completed for entry %s", entry_id)

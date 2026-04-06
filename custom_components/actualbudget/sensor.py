@@ -212,5 +212,9 @@ class ActualBudgetLastSyncSensor(CoordinatorEntity[ActualBudgetCoordinator], Sen
         return self.coordinator.last_refresh
 
     @property
+    def extra_state_attributes(self) -> Dict[str, Union[str, float, bool, None]]:
+        return {"syncing": self.coordinator.syncing}
+
+    @property
     def available(self) -> bool:
         return True
