@@ -192,11 +192,6 @@ class actualbudgetAccountSensor(SensorEntity):
         return self._icon
 
     async def async_update(self) -> None:
-        if (
-            self._balance_last_updated
-            and datetime.datetime.now() - self._balance_last_updated < MINIMUM_INTERVAL
-        ):
-            return
         """Fetch new state data for the sensor."""
         try:
             api = self._api
@@ -320,11 +315,6 @@ class actualbudgetBudgetSensor(SensorEntity):
         return extra_state_attributes
 
     async def async_update(self) -> None:
-        if (
-            self._balance_last_updated
-            and datetime.datetime.now() - self._balance_last_updated < MINIMUM_INTERVAL
-        ):
-            return
         """Fetch new state data for the sensor."""
         try:
             api = self._api
