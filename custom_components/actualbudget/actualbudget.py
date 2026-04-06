@@ -162,9 +162,12 @@ class ActualBudget:
             budgets[category].months = sorted(
                 budgets[category].months, key=lambda x: x.month
             )
-            budgets[category].accumulated_balance = (
-                get_accumulated_budgeted_balance(session, today, category)
-            )
+            try:
+                budgets[category].accumulated_balance = (
+                    get_accumulated_budgeted_balance(session, today, category)
+                )
+            except (AttributeError, TypeError):
+                budgets[category].accumulated_balance = Decimal(0)
         return list(budgets.values())
 
     async def get_budget(self, budget_name) -> Budget:
@@ -191,9 +194,12 @@ class ActualBudget:
                 BudgetMonth(month=month, budgeted=budgeted, spent=spent)
             )
         result.months = sorted(result.months, key=lambda x: x.month)
-        result.accumulated_balance = (
-            get_accumulated_budgeted_balance(session, today, budget_name)
-        )
+        try:
+            result.accumulated_balance = (
+                get_accumulated_budgeted_balance(session, today, budget_name)
+            )
+        except (AttributeError, TypeError):
+            result.accumulated_balance = Decimal(0)
         return result
 
     async def test_connection(self):
