@@ -202,6 +202,26 @@ class ActualBudget:
             result.accumulated_balance = Decimal(0)
         return result
 
+    async def run_bank_sync(self) -> None:
+        """Run bank synchronization."""
+        return await self.hass.async_add_executor_job(self._run_bank_sync)
+
+    def _run_bank_sync(self) -> None:
+        with self._lock:
+            self.get_session()
+            self.actual.sync()
+            self.actual.run_bank_sync()
+            self.actual.commit()
+
+    async def run_budget_sync(self) -> None:
+        """Sync the budget file from the server."""
+        return await self.hass.async_add_executor_job(self._run_budget_sync)
+
+    def _run_budget_sync(self) -> None:
+        with self._lock:
+            self.get_session()
+            self.actual.sync()
+
     async def test_connection(self):
         return await self.hass.async_add_executor_job(self.test_connection_sync)
 

@@ -59,6 +59,7 @@ async def async_setup_entry(
         cert = False
     encrypt_password = config.get(CONFIG_ENCRYPT_PASSWORD)
     api = ActualBudget(hass, endpoint, password, file, cert, encrypt_password)
+    config_entry.api = api
 
     domain = urlparse(endpoint).hostname
     port = urlparse(endpoint).port
