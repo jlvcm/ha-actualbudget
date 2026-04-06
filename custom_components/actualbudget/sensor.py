@@ -2,331 +2,175 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-import logging
-
-from typing import List, Dict, Union
-from urllib.parse import urlparse
 import datetime
+import logging
+from typing import Dict, Union
 
-from homeassistant.components.sensor import (
-    SensorEntity,
-)
-from homeassistant.components.sensor.const import (
-    SensorDeviceClass,
-    SensorStateClass,
-)
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    CONFIG_PREFIX,
-    DEFAULT_ICON,
-    DOMAIN,
-    CONFIG_ENDPOINT,
-    CONFIG_PASSWORD,
-    CONFIG_FILE,
-    CONFIG_UNIT,
-    CONFIG_CERT,
-    CONFIG_ENCRYPT_PASSWORD,
-)
-from .actualbudget import ActualBudget, BudgetMonth
+from .const import CONFIG_PREFIX, CONFIG_UNIT, DEFAULT_ICON, DOMAIN
+from .coordinator import ActualBudgetCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.DEBUG)
-
-# Time between updating data from API
-SCAN_INTERVAL = datetime.timedelta(minutes=60)
-MINIMUM_INTERVAL = datetime.timedelta(minutes=1)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
-):
-    """Setup sensor platform."""
-    config = config_entry.data
-    endpoint = config[CONFIG_ENDPOINT]
-    password = config[CONFIG_PASSWORD]
-    file = config[CONFIG_FILE]
-    cert = config.get(CONFIG_CERT)
-    unit = config.get(CONFIG_UNIT, "€")
-    prefix = config.get(CONFIG_PREFIX)
+) -> None:
+    """Set up sensors from a config entry."""
+    entry_data = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator: ActualBudgetCoordinator = entry_data["coordinator"]
+    unique_source_id: str = entry_data["unique_source_id"]
+    unit = config_entry.data.get(CONFIG_UNIT, "€")
+    prefix = config_entry.data.get(CONFIG_PREFIX)
 
-    if cert == "SKIP":
-        cert = False
-    encrypt_password = config.get(CONFIG_ENCRYPT_PASSWORD)
-    api = ActualBudget(hass, endpoint, password, file, cert, encrypt_password)
-    config_entry.api = api
-
-    domain = urlparse(endpoint).hostname
-    port = urlparse(endpoint).port
-    unique_source_id = f"{domain}_{port}_{file}"
-
-    accounts = await api.get_accounts()
-    lastUpdate = datetime.datetime.now()
-    accounts = [
-        actualbudgetAccountSensor(
-            api,
-            endpoint,
-            password,
-            file,
-            unit,
-            cert,
-            encrypt_password,
-            account.name,
-            account.balance,
-            unique_source_id,
-            prefix,
-            lastUpdate,
-        )
-        for account in accounts
-    ]
-    async_add_entities(accounts, update_before_add=True)
-
-    budgets = await api.get_budgets()
-    lastUpdate = datetime.datetime.now()
-    budgets = [
-        actualbudgetBudgetSensor(
-            api,
-            endpoint,
-            password,
-            file,
-            unit,
-            cert,
-            encrypt_password,
-            budget.name,
-            budget.months,
-            budget.accumulated_balance,
-            unique_source_id,
-            prefix,
-            lastUpdate,
-        )
-        for budget in budgets
-    ]
-    async_add_entities(budgets, update_before_add=True)
+    entities: list[SensorEntity] = []
+    data = coordinator.data
+    if data is not None:
+        for name in data.accounts:
+            entities.append(
+                ActualBudgetAccountSensor(coordinator, name, unit, unique_source_id, prefix)
+            )
+        for name in data.budgets:
+            entities.append(
+                ActualBudgetBudgetSensor(coordinator, name, unit, unique_source_id, prefix)
+            )
+    async_add_entities(entities)
 
 
-class actualbudgetAccountSensor(SensorEntity):
-    """Representation of a actualbudget Sensor."""
+class ActualBudgetAccountSensor(CoordinatorEntity[ActualBudgetCoordinator], SensorEntity):
+    """Account balance sensor backed by the coordinator snapshot."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_icon = DEFAULT_ICON
 
     def __init__(
         self,
-        api: ActualBudget,
-        endpoint: str,
-        password: str,
-        file: str,
+        coordinator: ActualBudgetCoordinator,
+        account_name: str,
         unit: str,
-        cert: str,
-        encrypt_password: str | None,
-        name: str,
-        balance: float,
         unique_source_id: str,
-        prefix: str,
-        balance_last_updated: datetime.datetime,
-    ):
-        super().__init__()
-        self._api = api
-        self._name = name
-        self._balance = balance
-        self._unique_source_id = unique_source_id
-        self._endpoint = endpoint
-        self._password = password
-        self._file = file
-        self._cert = cert
-        self._encrypt_password = encrypt_password
+        prefix: str | None,
+    ) -> None:
+        super().__init__(coordinator)
+        self._account_name = account_name
         self._prefix = prefix
-
-        self._icon = DEFAULT_ICON
-        self._unit_of_measurement = unit
-        self._device_class = SensorDeviceClass.MONETARY
-        self._state_class = SensorStateClass.MEASUREMENT
-        self._state = None
-        self._available = True
-        self._balance_last_updated = balance_last_updated
-
-    @property
-    def name(self) -> str:
-        """Return the name of the entity."""
-        if self._prefix:
-            return f"{self._prefix}_{self._name}"
-        else:
-            return self._name
-
-    @property
-    def unique_id(self) -> str:
-        """Return the unique ID of the sensor."""
-        if self._prefix:
-            return (
-                f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-{self._name}".lower()
+        self._attr_native_unit_of_measurement = unit
+        self._attr_unit_of_measurement = unit
+        self._attr_name = (
+            f"{prefix}_{account_name}" if prefix else account_name
+        )
+        if prefix:
+            self._attr_unique_id = (
+                f"{DOMAIN}-{unique_source_id}-{prefix}-{account_name}".lower()
             )
         else:
-            return f"{DOMAIN}-{self._unique_source_id}-{self._name}".lower()
+            self._attr_unique_id = (
+                f"{DOMAIN}-{unique_source_id}-{account_name}".lower()
+            )
 
     @property
     def available(self) -> bool:
-        """Return True if entity is available."""
-        return self._available
+        return (
+            super().available
+            and self.coordinator.data is not None
+            and self._account_name in self.coordinator.data.accounts
+        )
 
     @property
-    def state(self) -> float:
-        return self._balance
-
-    @property
-    def device_class(self):
-        return self._device_class
-
-    @property
-    def state_class(self):
-        return self._state_class
-
-    @property
-    def unit_of_measurement(self):
-        """Return the unit the value is expressed in."""
-        return self._unit_of_measurement
-
-    @property
-    def icon(self):
-        return self._icon
-
-    async def async_update(self) -> None:
-        """Fetch new state data for the sensor."""
-        try:
-            api = self._api
-            account = await api.get_account(self._name)
-            if account:
-                self._balance = account.balance
-            self._balance_last_updated = datetime.datetime.now()
-        except Exception as err:
-            self._available = False
-            _LOGGER.exception(
-                "Unknown error updating data from ActualBudget API to account %s. %s",
-                self._name,
-                err,
-            )
+    def native_value(self) -> float | None:
+        data = self.coordinator.data
+        if data is None:
+            return None
+        account = data.accounts.get(self._account_name)
+        if account is None:
+            return None
+        return float(account.balance)
 
 
-class actualbudgetBudgetSensor(SensorEntity):
-    """Representation of a actualbudget Sensor."""
+class ActualBudgetBudgetSensor(CoordinatorEntity[ActualBudgetCoordinator], SensorEntity):
+    """Budget category balance sensor backed by the coordinator snapshot."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_icon = DEFAULT_ICON
 
     def __init__(
         self,
-        api: ActualBudget,
-        endpoint: str,
-        password: str,
-        file: str,
+        coordinator: ActualBudgetCoordinator,
+        category_name: str,
         unit: str,
-        cert: str,
-        encrypt_password: str | None,
-        name: str,
-        months: List[BudgetMonth],
-        accumulated_balance: Decimal,
         unique_source_id: str,
-        prefix: str,
-        balance_last_updated: datetime.datetime,
-    ):
-        super().__init__()
-        self._api = api
-        self._name = name
-        self._months = months
-        self._accumulated_balance = accumulated_balance
-        self._unique_source_id = unique_source_id
-        self._endpoint = endpoint
-        self._password = password
-        self._file = file
-        self._cert = cert
-        self._encrypt_password = encrypt_password
+        prefix: str | None,
+    ) -> None:
+        super().__init__(coordinator)
+        self._category_name = category_name
         self._prefix = prefix
-
-        self._icon = DEFAULT_ICON
-        self._unit_of_measurement = unit
-        self._device_class = SensorDeviceClass.MONETARY
-        self._state_class = SensorStateClass.MEASUREMENT
-        self._available = True
-        self._balance_last_updated = balance_last_updated
-
-    @property
-    def name(self) -> str:
-        """Return the name of the entity."""
-        budgetName = f"budget_{self._name}"
-        if self._prefix:
-            return f"{self._prefix}_{budgetName}"
-        return budgetName
-
-    @property
-    def unique_id(self) -> str:
-        """Return the unique ID of the sensor."""
-        if self._prefix:
-            return f"{DOMAIN}-{self._unique_source_id}-{self._prefix}-budget-{self._name}".lower()
+        self._attr_native_unit_of_measurement = unit
+        self._attr_unit_of_measurement = unit
+        base = f"budget_{category_name}"
+        self._attr_name = f"{prefix}_{base}" if prefix else base
+        if prefix:
+            self._attr_unique_id = (
+                f"{DOMAIN}-{unique_source_id}-{prefix}-budget-{category_name}".lower()
+            )
         else:
-            return f"{DOMAIN}-{self._unique_source_id}-budget-{self._name}".lower()
+            self._attr_unique_id = (
+                f"{DOMAIN}-{unique_source_id}-budget-{category_name}".lower()
+            )
 
     @property
     def available(self) -> bool:
-        """Return True if entity is available."""
-        return self._available
+        return (
+            super().available
+            and self.coordinator.data is not None
+            and self._category_name in self.coordinator.data.budgets
+        )
 
     @property
-    def device_class(self):
-        return self._device_class
+    def native_value(self) -> float | None:
+        budget = self._current_budget()
+        if budget is None:
+            return None
+        return float(round(budget.accumulated_balance, 2))
 
     @property
-    def state_class(self):
-        return self._state_class
-
-    @property
-    def unit_of_measurement(self):
-        """Return the unit the value is expressed in."""
-        return self._unit_of_measurement
-
-    @property
-    def icon(self):
-        return self._icon
-
-
-    @property
-    def state(self) -> float | None:
-        return float(round(self._accumulated_balance, 2))
-
-    @property
-    def extra_state_attributes(self) -> Dict[str, Union[str, float]]:
-        extra_state_attributes = {}
+    def extra_state_attributes(self) -> Dict[str, Union[str, float, None]]:
+        budget = self._current_budget()
+        if budget is None:
+            return {}
+        now = datetime.datetime.now()
         months = [
-            m for m in self._months
-            if datetime.datetime.strptime(m.month, '%Y%m') <= datetime.datetime.now()
+            m
+            for m in budget.months
+            if datetime.datetime.strptime(m.month, "%Y%m") <= now
         ]
         if not months:
-            return extra_state_attributes
+            return {}
         current = months[-1]
-        extra_state_attributes["current_month"] = current.month
-        extra_state_attributes["current_budgeted"] = current.budgeted
-        extra_state_attributes["current_amount"] = current.budgeted  # backward compat
-        extra_state_attributes["current_spent"] = current.spent
+        attrs: Dict[str, Union[str, float, None]] = {
+            "current_month": current.month,
+            "current_budgeted": current.budgeted,
+            "current_amount": current.budgeted,  # backward compat
+            "current_spent": current.spent,
+        }
         if len(months) > 1:
             previous = months[-2]
-            extra_state_attributes["previous_month"] = previous.month
-            extra_state_attributes["previous_budgeted"] = previous.budgeted
-            extra_state_attributes["previous_amount"] = previous.budgeted  # backward compat
-            extra_state_attributes["previous_spent"] = previous.spent
-            total = sum(m.budgeted or 0 for m in months)
-            extra_state_attributes["total_amount"] = total  # backward compat
-        return extra_state_attributes
+            attrs["previous_month"] = previous.month
+            attrs["previous_budgeted"] = previous.budgeted
+            attrs["previous_amount"] = previous.budgeted  # backward compat
+            attrs["previous_spent"] = previous.spent
+            attrs["total_amount"] = sum(m.budgeted or 0 for m in months)  # backward compat
+        return attrs
 
-    async def async_update(self) -> None:
-        """Fetch new state data for the sensor."""
-        try:
-            api = self._api
-            budget = await api.get_budget(self._name)
-            self._balance_last_updated = datetime.datetime.now()
-            if budget:
-                self._months = budget.months
-                self._accumulated_balance = budget.accumulated_balance
-        except Exception as err:
-            self._available = False
-            _LOGGER.exception(
-                "Unknown error updating data from ActualBudget API to budget %s. %s",
-                self._name,
-                err,
-            )
+    def _current_budget(self):
+        data = self.coordinator.data
+        if data is None:
+            return None
+        return data.budgets.get(self._category_name)

@@ -1,7 +1,6 @@
 """Service actions for ActualBudget integration."""
 
 from __future__ import annotations
-import asyncio
 import logging
 
 import voluptuous as vol
@@ -14,26 +13,26 @@ from homeassistant.core import (
 )
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers.entity_registry import async_entries_for_config_entry, async_get
-from homeassistant.helpers.entity_component import async_update_entity
 
+from .actualbudget import ActualBudget
 from .const import (
-    DOMAIN,
     ATTR_CONFIG_ENTRY_ID,
+    DOMAIN,
 )
+from .coordinator import ActualBudgetCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @callback
-def get_actualbudget_client(hass: HomeAssistant, config_entry_id: str):
-    """Get the ActualBudget API client for the given config entry."""
-    entry: ConfigEntry | None
-    if not (entry := hass.config_entries.async_get_entry(config_entry_id)):
+def _get_entry_data(hass: HomeAssistant, config_entry_id: str) -> dict:
+    """Return the stored api + coordinator for a loaded config entry."""
+    entry: ConfigEntry | None = hass.config_entries.async_get_entry(config_entry_id)
+    if entry is None:
         raise ServiceValidationError("Entry not found")
     if entry.state is not ConfigEntryState.LOADED:
         raise ServiceValidationError("Entry not loaded")
-    return entry.api
+    return hass.data[DOMAIN][config_entry_id]
 
 
 @callback
@@ -61,41 +60,21 @@ def register_actions(hass: HomeAssistant) -> None:
     )
 
 
-@callback
 async def handle_bank_sync(call: ServiceCall) -> ServiceResponse:
     """Handle the bank_sync service action call."""
-    api = get_actualbudget_client(call.hass, call.data[ATTR_CONFIG_ENTRY_ID])
+    entry_data = _get_entry_data(call.hass, call.data[ATTR_CONFIG_ENTRY_ID])
+    api: ActualBudget = entry_data["api"]
+    coordinator: ActualBudgetCoordinator = entry_data["coordinator"]
 
     await api.run_bank_sync()
-
-    er = async_get(call.hass)
-    integration_entities = async_entries_for_config_entry(
-        er, call.data[ATTR_CONFIG_ENTRY_ID]
-    )
-
-    tasks = [
-        async_update_entity(call.hass, entity.entity_id)
-        for entity in integration_entities
-    ]
-    if tasks:
-        await asyncio.gather(*tasks)
+    await coordinator.async_request_refresh()
 
 
-@callback
 async def handle_budget_sync(call: ServiceCall) -> ServiceResponse:
     """Handle the budget_sync service action call."""
-    api = get_actualbudget_client(call.hass, call.data[ATTR_CONFIG_ENTRY_ID])
+    entry_data = _get_entry_data(call.hass, call.data[ATTR_CONFIG_ENTRY_ID])
+    api: ActualBudget = entry_data["api"]
+    coordinator: ActualBudgetCoordinator = entry_data["coordinator"]
 
     await api.run_budget_sync()
-
-    er = async_get(call.hass)
-    integration_entities = async_entries_for_config_entry(
-        er, call.data[ATTR_CONFIG_ENTRY_ID]
-    )
-
-    tasks = [
-        async_update_entity(call.hass, entity.entity_id)
-        for entity in integration_entities
-    ]
-    if tasks:
-        await asyncio.gather(*tasks)
+    await coordinator.async_request_refresh()
