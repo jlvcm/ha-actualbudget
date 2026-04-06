@@ -31,7 +31,9 @@ async def async_setup_entry(
     unit = config_entry.data.get(CONFIG_UNIT, "€")
     prefix = config_entry.data.get(CONFIG_PREFIX)
 
-    entities: list[SensorEntity] = []
+    entities: list[SensorEntity] = [
+        ActualBudgetLastSyncSensor(coordinator, unique_source_id, prefix),
+    ]
     data = coordinator.data
     if data is not None:
         for name in data.accounts:
@@ -174,3 +176,41 @@ class ActualBudgetBudgetSensor(CoordinatorEntity[ActualBudgetCoordinator], Senso
         if data is None:
             return None
         return data.budgets.get(self._category_name)
+
+
+class ActualBudgetLastSyncSensor(CoordinatorEntity[ActualBudgetCoordinator], SensorEntity):
+    """Exposes the coordinator's last successful refresh time as a timestamp sensor.
+
+    Every coordinator refresh (poll or manual sync) updates this sensor's
+    value, so cards bound to it always reflect the most recent sync attempt
+    even when no account or budget value actually changed.
+    """
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:cloud-sync"
+
+    def __init__(
+        self,
+        coordinator: ActualBudgetCoordinator,
+        unique_source_id: str,
+        prefix: str | None,
+    ) -> None:
+        super().__init__(coordinator)
+        base_name = "last_sync"
+        self._attr_name = f"{prefix}_{base_name}" if prefix else base_name
+        if prefix:
+            self._attr_unique_id = (
+                f"{DOMAIN}-{unique_source_id}-{prefix}-last-sync".lower()
+            )
+        else:
+            self._attr_unique_id = (
+                f"{DOMAIN}-{unique_source_id}-last-sync".lower()
+            )
+
+    @property
+    def native_value(self):
+        return self.coordinator.last_refresh
+
+    @property
+    def available(self) -> bool:
+        return True

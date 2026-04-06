@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 from homeassistant.core import HomeAssistant
@@ -26,9 +26,12 @@ class ActualBudgetCoordinator(DataUpdateCoordinator[BudgetData]):
             update_interval=UPDATE_INTERVAL,
         )
         self.api = api
+        self.last_refresh: datetime | None = None
 
     async def _async_update_data(self) -> BudgetData:
         try:
-            return await self.api.fetch_all()
+            data = await self.api.fetch_all()
         except Exception as err:
             raise UpdateFailed(f"Error fetching ActualBudget data: {err}") from err
+        self.last_refresh = datetime.now(timezone.utc)
+        return data

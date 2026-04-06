@@ -62,19 +62,25 @@ def register_actions(hass: HomeAssistant) -> None:
 
 async def handle_bank_sync(call: ServiceCall) -> ServiceResponse:
     """Handle the bank_sync service action call."""
-    entry_data = _get_entry_data(call.hass, call.data[ATTR_CONFIG_ENTRY_ID])
+    entry_id = call.data[ATTR_CONFIG_ENTRY_ID]
+    _LOGGER.warning("actualbudget.bank_sync invoked for entry %s", entry_id)
+    entry_data = _get_entry_data(call.hass, entry_id)
     api: ActualBudget = entry_data["api"]
     coordinator: ActualBudgetCoordinator = entry_data["coordinator"]
 
     await api.run_bank_sync()
     await coordinator.async_refresh()
+    _LOGGER.warning("actualbudget.bank_sync completed for entry %s", entry_id)
 
 
 async def handle_budget_sync(call: ServiceCall) -> ServiceResponse:
     """Handle the budget_sync service action call."""
-    entry_data = _get_entry_data(call.hass, call.data[ATTR_CONFIG_ENTRY_ID])
+    entry_id = call.data[ATTR_CONFIG_ENTRY_ID]
+    _LOGGER.warning("actualbudget.budget_sync invoked for entry %s", entry_id)
+    entry_data = _get_entry_data(call.hass, entry_id)
     api: ActualBudget = entry_data["api"]
     coordinator: ActualBudgetCoordinator = entry_data["coordinator"]
 
     await api.run_budget_sync()
     await coordinator.async_refresh()
+    _LOGGER.warning("actualbudget.budget_sync completed for entry %s", entry_id)
