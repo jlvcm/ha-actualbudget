@@ -67,7 +67,7 @@ async def handle_bank_sync(call: ServiceCall) -> ServiceResponse:
     coordinator: ActualBudgetCoordinator = entry_data["coordinator"]
 
     await api.run_bank_sync()
-    await coordinator.async_request_refresh()
+    await coordinator.async_refresh()
 
 
 async def handle_budget_sync(call: ServiceCall) -> ServiceResponse:
@@ -77,4 +77,4 @@ async def handle_budget_sync(call: ServiceCall) -> ServiceResponse:
     coordinator: ActualBudgetCoordinator = entry_data["coordinator"]
 
     await api.run_budget_sync()
-    await coordinator.async_request_refresh()
+    await coordinator.async_refresh()
