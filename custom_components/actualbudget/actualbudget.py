@@ -11,7 +11,12 @@ from actual.exceptions import (
     InvalidZipFile,
     AuthorizationError,
 )
-from actual.queries import get_accounts, get_account, get_budgets, get_category
+from actual.queries import (
+    get_accounts,
+    get_account,
+    get_budgets,
+    get_accumulated_budgeted_balance,
+)
 from requests.exceptions import ConnectionError, SSLError
 import datetime
 import threading
@@ -24,16 +29,17 @@ SESSION_TIMEOUT = datetime.timedelta(minutes=30)
 
 
 @dataclass
-class BudgetAmount:
+class BudgetMonth:
     month: str
-    amount: float | None
+    budgeted: float | None
+    spent: float | None
 
 
 @dataclass
 class Budget:
     name: str
-    amounts: List[BudgetAmount]
-    balance: Decimal
+    months: List[BudgetMonth]
+    accumulated_balance: Decimal
 
 
 @dataclass
@@ -135,26 +141,29 @@ class ActualBudget:
 
     def get_budgets_sync(self) -> List[Budget]:
         session = self.get_session()
+        today = datetime.date.today()
         budgets_raw = get_budgets(session)
         budgets: Dict[str, Budget] = {}
         for budget_raw in budgets_raw:
             if not budget_raw.category:
                 continue
             category = str(budget_raw.category.name)
-            amount = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
+            budgeted = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
+            spent = float(budget_raw.balance)
             month = str(budget_raw.month)
             if category not in budgets:
                 budgets[category] = Budget(
-                    name=category, amounts=[], balance=Decimal(0)
+                    name=category, months=[], accumulated_balance=Decimal(0)
                 )
-            budgets[category].amounts.append(BudgetAmount(month=month, amount=amount))
-        for category in budgets:
-            budgets[category].amounts = sorted(
-                budgets[category].amounts, key=lambda x: x.month
+            budgets[category].months.append(
+                BudgetMonth(month=month, budgeted=budgeted, spent=spent)
             )
-            category_data = get_category(session, category)
-            budgets[category].balance = (
-                category_data.balance if category_data else Decimal(0)
+        for category in budgets:
+            budgets[category].months = sorted(
+                budgets[category].months, key=lambda x: x.month
+            )
+            budgets[category].accumulated_balance = (
+                get_accumulated_budgeted_balance(session, today, category)
             )
         return list(budgets.values())
 
@@ -169,18 +178,23 @@ class ActualBudget:
         budget_name,
     ) -> Budget:
         session = self.get_session()
+        today = datetime.date.today()
         budgets_raw = get_budgets(session, None, budget_name)
         if not budgets_raw or not budgets_raw[0]:
             raise Exception(f"budget {budget_name} not found")
-        budget: Budget = Budget(name=budget_name, amounts=[], balance=Decimal(0))
+        result = Budget(name=budget_name, months=[], accumulated_balance=Decimal(0))
         for budget_raw in budgets_raw:
-            amount = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
+            budgeted = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
+            spent = float(budget_raw.balance)
             month = str(budget_raw.month)
-            budget.amounts.append(BudgetAmount(month=month, amount=amount))
-        budget.amounts = sorted(budget.amounts, key=lambda x: x.month)
-        category_data = get_category(session, budget_name)
-        budget.balance = category_data.balance if category_data else Decimal(0)
-        return budget
+            result.months.append(
+                BudgetMonth(month=month, budgeted=budgeted, spent=spent)
+            )
+        result.months = sorted(result.months, key=lambda x: x.month)
+        result.accumulated_balance = (
+            get_accumulated_budgeted_balance(session, today, budget_name)
+        )
+        return result
 
     async def test_connection(self):
         return await self.hass.async_add_executor_job(self.test_connection_sync)

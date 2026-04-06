@@ -31,7 +31,7 @@ from .const import (
     CONFIG_CERT,
     CONFIG_ENCRYPT_PASSWORD,
 )
-from .actualbudget import ActualBudget, BudgetAmount
+from .actualbudget import ActualBudget, BudgetMonth
 
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
@@ -97,8 +97,8 @@ async def async_setup_entry(
             cert,
             encrypt_password,
             budget.name,
-            budget.amounts,
-            budget.balance,
+            budget.months,
+            budget.accumulated_balance,
             unique_source_id,
             prefix,
             lastUpdate,
@@ -225,8 +225,8 @@ class actualbudgetBudgetSensor(SensorEntity):
         cert: str,
         encrypt_password: str | None,
         name: str,
-        amounts: List[BudgetAmount],
-        balance: float,
+        months: List[BudgetMonth],
+        accumulated_balance: Decimal,
         unique_source_id: str,
         prefix: str,
         balance_last_updated: datetime.datetime,
@@ -234,8 +234,8 @@ class actualbudgetBudgetSensor(SensorEntity):
         super().__init__()
         self._api = api
         self._name = name
-        self._amounts = amounts
-        self._balance = balance
+        self._months = months
+        self._accumulated_balance = accumulated_balance
         self._unique_source_id = unique_source_id
         self._endpoint = endpoint
         self._password = password
@@ -292,28 +292,26 @@ class actualbudgetBudgetSensor(SensorEntity):
 
     @property
     def state(self) -> float | None:
-        total = 0
-        for amount in self._amounts:
-            if datetime.datetime.strptime(amount.month, '%Y%m') <= datetime.datetime.now():
-                total += amount.amount if amount.amount else 0
-        return round(self._balance + Decimal(total), 2)
+        return float(round(self._accumulated_balance, 2))
 
     @property
     def extra_state_attributes(self) -> Dict[str, Union[str, float]]:
         extra_state_attributes = {}
-        amounts = [amount for amount in self._amounts if datetime.datetime.strptime(amount.month, '%Y%m') <= datetime.datetime.now()]
-        current_month = amounts[-1].month
-        if current_month:
-            extra_state_attributes["current_month"] = current_month
-            extra_state_attributes["current_amount"] = amounts[-1].amount
-        if len(amounts) > 1:
-            extra_state_attributes["previous_month"] = amounts[-2].month
-            extra_state_attributes["previous_amount"] = amounts[-2].amount
-            total = 0
-            for amount in amounts:
-                total += amount.amount if amount.amount else 0
-            extra_state_attributes["total_amount"] = total
-
+        months = [
+            m for m in self._months
+            if datetime.datetime.strptime(m.month, '%Y%m') <= datetime.datetime.now()
+        ]
+        if not months:
+            return extra_state_attributes
+        current = months[-1]
+        extra_state_attributes["current_month"] = current.month
+        extra_state_attributes["current_budgeted"] = current.budgeted
+        extra_state_attributes["current_spent"] = current.spent
+        if len(months) > 1:
+            previous = months[-2]
+            extra_state_attributes["previous_month"] = previous.month
+            extra_state_attributes["previous_budgeted"] = previous.budgeted
+            extra_state_attributes["previous_spent"] = previous.spent
         return extra_state_attributes
 
     async def async_update(self) -> None:
@@ -328,8 +326,8 @@ class actualbudgetBudgetSensor(SensorEntity):
             budget = await api.get_budget(self._name)
             self._balance_last_updated = datetime.datetime.now()
             if budget:
-                self._amounts = budget.amounts
-                self._balance = budget.balance
+                self._months = budget.months
+                self._accumulated_balance = budget.accumulated_balance
         except Exception as err:
             self._available = False
             _LOGGER.exception(
