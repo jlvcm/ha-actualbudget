@@ -32,5 +32,27 @@
     "abort": {
       "already_configured": "Device is already configured"
     }
+  },
+  "services": {
+    "bank_sync": {
+      "name": "Synchronize transactions",
+      "description": "Downloads latest transactions from all linked bank accounts and inserts them into Actual Budget.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Actual Budget instance",
+          "description": "Select the Actual Budget instance to perform the bank sync on."
+        }
+      }
+    },
+    "budget_sync": {
+      "name": "Synchronize budgets",
+      "description": "Downloads latest budget file from the server and update sensor entities.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Actual Budget instance",
+          "description": "Select the Actual Budget instance to perform the budget sync on."
+        }
+      }
+    }
   }
 }
