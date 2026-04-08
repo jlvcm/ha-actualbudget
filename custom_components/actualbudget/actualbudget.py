@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pathlib
 from dataclasses import dataclass, field
 from decimal import Decimal
 import datetime
@@ -73,11 +74,9 @@ class ActualBudget:
         self.cert = cert
         self.encrypt_password = encrypt_password
         self.actual: Actual | None = None
+        self.file_id = None
         self.session_started_at = datetime.datetime.now()
-        # Reentrant so a method holding the lock can still call get_session().
         self._lock = threading.RLock()
-
-    # -- session management -------------------------------------------------
 
     def _ensure_session(self):
         """Return a valid Actual session, creating one if needed.
@@ -114,8 +113,12 @@ class ActualBudget:
             cert=self.cert,
             encryption_password=self.encrypt_password,
             file=self.file,
-            data_dir=self.hass.config.path("actualbudget"),
         )
+        self.file_id = str(actual._file.file_id)
+        actual._data_dir = (
+            pathlib.Path(self.hass.config.path("actualbudget")) / f"{self.file_id}"
+        )
+        _LOGGER.debug(f"Creating budget file on folder {actual._data_dir}")
         actual.__enter__()
         result = actual.validate()
         if not result.data.validated:
@@ -162,7 +165,6 @@ class ActualBudget:
                         session, today, name
                     )
                 except (AttributeError, TypeError):
-                    # Category has no budget history for this month
                     budget.accumulated_balance = Decimal(0)
 
             data.budgets = budgets_by_name

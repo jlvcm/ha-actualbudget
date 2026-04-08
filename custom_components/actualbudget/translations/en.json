@@ -10,6 +10,7 @@
           "password": "password",
           "encrypt_password": "encrypt password",
           "file": "file id",
+          "skip_validate_cert": "Skip certificate validation",
           "cert": "certificate",
           "unit": "unit"
         },
@@ -18,7 +19,7 @@
           "password": "The password of the actualbudget server",
           "encrypt_password": "The password to encrypt the actualbudget file",
           "file": "The file id of the actualbudget server",
-          "cert": "The certificate of the actualbudget server, write 'SKIP' to skip certificate validation",
+          "cert": "The optional certificate of the actualbudget server",
           "unit": "The currency of the actualbudget server"
         }
       }

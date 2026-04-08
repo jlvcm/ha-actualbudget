@@ -10,6 +10,7 @@
           "password": "password",
           "encrypt_password": "krypteringspassword",
           "file": "fil-id",
+          "skip_validate_cert": "Spring certifikatvalidering over",
           "cert": "certifikat",
           "unit": "Enhed"
         },
@@ -18,7 +19,7 @@
           "password": "Password til actualbudget serveren",
           "encrypt_password": "Password til kryptering af actualbudget filen",
           "file": "Fil-id for actualbudget serveren",
-          "cert": "Certifikat til actualbudget serveren. Brug 'SKIP' for at springe certifikatvalidering over",
+          "cert": "Certifikat til actualbudget serveren",
           "unit": "Møntfod for actualbudget serveren"
         }
       }

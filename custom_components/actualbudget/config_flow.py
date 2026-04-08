@@ -7,7 +7,6 @@ import voluptuous as vol
 from urllib.parse import urlparse
 
 from homeassistant import config_entries
-from homeassistant.helpers.selector import selector
 
 from .actualbudget import ActualBudget
 from .const import (
@@ -16,6 +15,7 @@ from .const import (
     CONFIG_PASSWORD,
     CONFIG_FILE,
     CONFIG_CERT,
+    CONFIG_SKIP_VALIDATE_CERT,
     CONFIG_ENCRYPT_PASSWORD,
     CONFIG_UNIT,
     CONFIG_PREFIX,
@@ -30,6 +30,7 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONFIG_PASSWORD): str,
         vol.Required(CONFIG_FILE): str,
         vol.Required(CONFIG_UNIT, default="€"): str,
+        vol.Required(CONFIG_SKIP_VALIDATE_CERT, default=False): bool,
         vol.Optional(CONFIG_CERT): str,
         vol.Optional(CONFIG_ENCRYPT_PASSWORD): str,
         vol.Optional(CONFIG_PREFIX, default="actualbudget"): str,
@@ -59,8 +60,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         password = user_input[CONFIG_PASSWORD]
         file = user_input[CONFIG_FILE]
         cert = user_input.get(CONFIG_CERT)
+        skip_validate_cert = user_input.get(CONFIG_SKIP_VALIDATE_CERT, True)
         encrypt_password = user_input.get(CONFIG_ENCRYPT_PASSWORD)
-        if cert == "SKIP":
+        if not skip_validate_cert:
             cert = False
 
         await self.async_set_unique_id(unique_id)

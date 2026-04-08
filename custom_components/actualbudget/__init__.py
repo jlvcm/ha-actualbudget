@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import (HomeAssistant)
 from homeassistant.helpers.typing import ConfigType
 
 from .actions import register_actions
@@ -20,7 +20,7 @@ from .const import (
 )
 from .coordinator import ActualBudgetCoordinator
 
-__version__ = "1.2.0"
+__version__ = "3.0.0"
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[str] = ["sensor"]
