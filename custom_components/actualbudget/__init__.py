@@ -12,7 +12,7 @@ from .const import (
 )
 from .actions import register_actions
 
-__version__ = "1.1.0"
+__version__ = "3.0.0"
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
 
