@@ -7,6 +7,6 @@
   "documentation": "https://github.com/jlvcm/ha-actualbudget/blob/main/README.md",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/jlvcm/ha-actualbudget/issues",
-  "requirements": ["actualpy==0.13.0"],
+  "requirements": ["actualpy==0.21.0"],
   "version": "3.0.0"
 }
