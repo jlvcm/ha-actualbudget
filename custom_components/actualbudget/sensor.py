@@ -6,7 +6,7 @@ import datetime
 import logging
 from typing import Dict, Union
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -51,6 +51,7 @@ class ActualBudgetAccountSensor(CoordinatorEntity[ActualBudgetCoordinator], Sens
     """Account balance sensor backed by the coordinator snapshot."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_state_class = SensorStateClass.TOTAL
     _attr_icon = DEFAULT_ICON
 
     def __init__(
@@ -101,6 +102,7 @@ class ActualBudgetBudgetSensor(CoordinatorEntity[ActualBudgetCoordinator], Senso
     """Budget category balance sensor backed by the coordinator snapshot."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_state_class = SensorStateClass.TOTAL
     _attr_icon = DEFAULT_ICON
 
     def __init__(
