@@ -54,6 +54,102 @@
           "description": "Select the Actual Budget instance to perform the budget sync on."
         }
       }
+    },
+    "add_transaction": {
+      "name": "Add transaction",
+      "description": "Creates (or updates, if imported_id matches an existing transaction) a transaction in Actual Budget. Useful for recording bills/invoices from other integrations precisely, without waiting on a generic bank sync.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Actual Budget instance",
+          "description": "Select the Actual Budget instance to add the transaction to."
+        },
+        "account": {
+          "name": "Account",
+          "description": "Name of the Actual Budget account to add the transaction to."
+        },
+        "date": {
+          "name": "Date",
+          "description": "Date of the transaction."
+        },
+        "amount": {
+          "name": "Amount",
+          "description": "Positive for a deposit, negative for a payment/expense."
+        },
+        "payee": {
+          "name": "Payee",
+          "description": "Payee name. Created automatically if it doesn't exist yet."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Optional free-text note on the transaction."
+        },
+        "category": {
+          "name": "Category",
+          "description": "Optional budget category. Created automatically if it doesn't exist yet."
+        },
+        "imported_id": {
+          "name": "Imported ID",
+          "description": "Optional stable unique id (e.g. an invoice number). Calling this action again with the same imported_id updates that transaction instead of creating a duplicate."
+        },
+        "cleared": {
+          "name": "Cleared",
+          "description": "Mark the transaction as cleared/reconciled."
+        }
+      }
+    },
+    "clear_account": {
+      "name": "Clear account",
+      "description": "Permanently deletes every transaction on an account. Irreversible short of restoring a budget-file backup - requires confirm to be set to true.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Actual Budget instance",
+          "description": "Select the Actual Budget instance to clear the account on."
+        },
+        "account": {
+          "name": "Account",
+          "description": "Name of the Actual Budget account to delete all transactions from."
+        },
+        "confirm": {
+          "name": "Confirm",
+          "description": "Must be set to true. A safeguard against accidentally wiping an account's transactions."
+        }
+      }
+    },
+    "import_transactions": {
+      "name": "Import transactions",
+      "description": "Bulk variant of Add transaction: creates/reconciles many transactions in a single commit. Useful for backfilling a bank statement export.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Actual Budget instance",
+          "description": "Select the Actual Budget instance to import the transactions into."
+        },
+        "transactions": {
+          "name": "Transactions",
+          "description": "List of transaction objects, each with the same fields as Add transaction (account, date, amount, payee, notes, category, imported_id, cleared)."
+        }
+      }
+    },
+    "set_budget": {
+      "name": "Set budget",
+      "description": "Sets (creates or overwrites) the envelope-budget amount for a category, for one or more months.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Actual Budget instance",
+          "description": "Select the Actual Budget instance to set the budget on."
+        },
+        "category": {
+          "name": "Category",
+          "description": "Name of the budget category to set."
+        },
+        "amount": {
+          "name": "Amount",
+          "description": "Monthly budgeted amount for this category."
+        },
+        "months": {
+          "name": "Months",
+          "description": "List of months to set this amount for, as YYYY-MM strings (e.g. [\"2026-08\", \"2026-09\"])."
+        }
+      }
     }
   }
 }

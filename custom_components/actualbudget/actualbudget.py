@@ -18,9 +18,12 @@ from actual.exceptions import (
     UnknownFileId,
 )
 from actual.queries import (
+    create_budget,
     get_accounts,
     get_accumulated_budgeted_balance,
     get_budgets,
+    get_transactions,
+    reconcile_transaction,
 )
 from requests.exceptions import ConnectionError, SSLError
 
@@ -191,6 +194,148 @@ class ActualBudget:
         with self._lock:
             self._ensure_session()
             self.actual.sync()
+
+    # -- transactions ---------------------------------------------------------
+
+    async def add_transaction(
+        self,
+        account: str,
+        date: datetime.date,
+        amount: float,
+        payee: str | None = None,
+        notes: str | None = None,
+        category: str | None = None,
+        imported_id: str | None = None,
+        cleared: bool = False,
+    ) -> str:
+        """Create or reconcile a transaction and commit it.
+
+        Uses reconcile_transaction (not create_transaction) so that passing
+        the same imported_id twice (e.g. an automation re-running for the
+        same bill) updates the existing transaction instead of duplicating
+        it. Returns the transaction id.
+        """
+        return await self.hass.async_add_executor_job(
+            self._add_transaction_sync,
+            account,
+            date,
+            amount,
+            payee,
+            notes,
+            category,
+            imported_id,
+            cleared,
+        )
+
+    def _add_transaction_sync(
+        self,
+        account: str,
+        date: datetime.date,
+        amount: float,
+        payee: str | None,
+        notes: str | None,
+        category: str | None,
+        imported_id: str | None,
+        cleared: bool,
+    ) -> str:
+        with self._lock:
+            session = self._ensure_session()
+            txn = reconcile_transaction(
+                session,
+                date=date,
+                account=account,
+                payee=payee,
+                notes=notes,
+                category=category,
+                amount=amount,
+                imported_id=imported_id,
+                cleared=cleared,
+            )
+            self.actual.commit()
+            return str(txn.id)
+
+    async def import_transactions(self, transactions: list[dict]) -> int:
+        """Bulk-create/reconcile many transactions in a single session+commit.
+
+        Each dict in `transactions` accepts the same keys as add_transaction
+        (account, date, amount, payee, notes, category, imported_id, cleared).
+        Committing once at the end (instead of once per transaction) is what
+        makes this practical for a few hundred rows - many small commits
+        against a synced Actual file is slow and needlessly re-triggers sync
+        bookkeeping for every single row.
+        """
+        return await self.hass.async_add_executor_job(
+            self._import_transactions_sync, transactions
+        )
+
+    def _import_transactions_sync(self, transactions: list[dict]) -> int:
+        with self._lock:
+            session = self._ensure_session()
+            count = 0
+            for t in transactions:
+                reconcile_transaction(
+                    session,
+                    date=t["date"],
+                    account=t["account"],
+                    payee=t.get("payee"),
+                    notes=t.get("notes"),
+                    category=t.get("category"),
+                    amount=t["amount"],
+                    imported_id=t.get("imported_id"),
+                    cleared=t.get("cleared", False),
+                )
+                count += 1
+            self.actual.commit()
+            return count
+
+    async def set_budget(
+        self, category: str, amount: float, months: list[str]
+    ) -> int:
+        """Set the budgeted (envelope) amount for a category across one or more months.
+
+        `months` are "YYYY-MM" strings. Uses create_budget (not a separate
+        update path), which already handles both create and replace: calling
+        this again for the same category/month overwrites the amount.
+        Returns the number of month-entries written.
+        """
+        return await self.hass.async_add_executor_job(
+            self._set_budget_sync, category, amount, months
+        )
+
+    def _set_budget_sync(self, category: str, amount: float, months: list[str]) -> int:
+        with self._lock:
+            session = self._ensure_session()
+            count = 0
+            for month_str in months:
+                year, month = (int(p) for p in month_str.split("-", 1))
+                create_budget(session, datetime.date(year, month, 1), category, amount)
+                count += 1
+            self.actual.commit()
+            return count
+
+    async def clear_account(self, account: str) -> int:
+        """Delete every transaction on an account and commit. Returns the count deleted.
+
+        Uses Transactions.delete() (not raw SQL) so split/parent transactions
+        are torn down consistently, the same way the Actual GUI does it.
+        """
+        return await self.hass.async_add_executor_job(
+            self._clear_account_sync, account
+        )
+
+    def _clear_account_sync(self, account: str) -> int:
+        with self._lock:
+            session = self._ensure_session()
+            txns = get_transactions(session, account=account)
+            count = 0
+            for txn in txns:
+                if txn.is_child:
+                    # deleted as part of its parent's delete()
+                    continue
+                txn.delete()
+                count += 1
+            self.actual.commit()
+            return count
 
     # -- connection test ----------------------------------------------------
 

@@ -13,3 +13,102 @@ budget_sync:
       selector:
         config_entry:
           integration: actualbudget
+
+add_transaction:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: actualbudget
+    account:
+      required: true
+      example: "Checking"
+      selector:
+        text:
+    date:
+      required: true
+      selector:
+        date:
+    amount:
+      required: true
+      example: -19.99
+      selector:
+        number:
+          mode: box
+          step: 0.01
+    payee:
+      required: false
+      selector:
+        text:
+    notes:
+      required: false
+      selector:
+        text:
+    category:
+      required: false
+      selector:
+        text:
+    imported_id:
+      required: false
+      selector:
+        text:
+    cleared:
+      required: false
+      default: false
+      selector:
+        boolean:
+
+clear_account:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: actualbudget
+    account:
+      required: true
+      example: "Checking"
+      selector:
+        text:
+    confirm:
+      required: true
+      selector:
+        boolean:
+
+import_transactions:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: actualbudget
+    transactions:
+      required: true
+      selector:
+        object:
+
+set_budget:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: actualbudget
+    category:
+      required: true
+      example: "Spesa"
+      selector:
+        text:
+    amount:
+      required: true
+      example: 200.0
+      selector:
+        number:
+          mode: box
+          step: 0.01
+    months:
+      required: true
+      example: ["2026-08", "2026-09"]
+      selector:
+        object:
