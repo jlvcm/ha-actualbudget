@@ -17,10 +17,11 @@ from actual.exceptions import (
     InvalidZipFile,
     UnknownFileId,
 )
+from actual.budgets import get_budget_history
 from actual.queries import (
     get_accounts,
-    get_accumulated_budgeted_balance,
     get_budgets,
+    get_category,
 )
 from requests.exceptions import ConnectionError, SSLError
 
@@ -158,12 +159,25 @@ class ActualBudget:
                     BudgetMonth(month=str(raw.month), budgeted=budgeted, spent=spent)
                 )
 
+            # Compute the budget history once and reuse it for every category.
+            # get_accumulated_budgeted_balance() recomputes the full history for
+            # each call, which is O(categories * months) and can take minutes on
+            # realistic budgets (see issue #56).
+            history = get_budget_history(session, today)
+            last_budget = history[-1] if history else None
             for name, budget in budgets_by_name.items():
                 budget.months.sort(key=lambda m: m.month)
                 try:
-                    budget.accumulated_balance = get_accumulated_budgeted_balance(
-                        session, today, name
-                    )
+                    if last_budget is None:
+                        budget.accumulated_balance = Decimal(0)
+                    else:
+                        category = get_category(session, name)
+                        entry = last_budget.from_category(category)
+                        budget.accumulated_balance = (
+                            entry.accumulated_balance
+                            if entry is not None
+                            else Decimal(0)
+                        )
                 except (AttributeError, TypeError):
                     budget.accumulated_balance = Decimal(0)
 
