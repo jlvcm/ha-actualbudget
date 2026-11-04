@@ -1,6 +1,7 @@
 {
   "domain": "actualbudget",
   "name": "actualbudget Integration",
+  "categories": ["finance"],
   "codeowners": ["@jlvcm"],
   "config_flow": true,
   "dependencies": [],
