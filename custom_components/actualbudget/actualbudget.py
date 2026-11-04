@@ -31,6 +31,65 @@ _LOGGER = logging.getLogger(__name__)
 SESSION_TIMEOUT = datetime.timedelta(minutes=30)
 
 
+def _apply_offbudget_account_fix() -> None:
+    """Make actualpy ignore off-budget (tracking) accounts for budget values.
+
+    Actual never counts transactions booked on an off-budget account towards a
+    category budget, but actualpy's balance helpers (``queries._balance_base_query``
+    and ``BaseBudgets.balance``) sum *every* transaction of a category regardless
+    of the account. Because bank sync and AI categorisation frequently post to
+    off-budget accounts, the integration would otherwise report a higher "spent"
+    and an inflated balance compared with the Actual UI.
+
+    Patch both helpers so they only consider on-budget accounts, mirroring the UI.
+    Idempotent: applied once per process.
+    """
+    from sqlalchemy import func
+    from sqlalchemy.orm import object_session
+    from sqlmodel import select
+
+    import actual.budgets as _budgets
+    import actual.queries as _queries
+    from actual.database import Accounts, BaseBudgets, Transactions
+    from actual.utils.conversions import cents_to_decimal, date_to_int
+
+    original = _queries._balance_base_query
+    if getattr(original, "_offbudget_patched", False):
+        return
+
+    def _balance_base_query(s, start_date, end_date, account=None, category=None):
+        query = original(s, start_date, end_date, account, category)
+        return query.where(
+            Transactions.acct.in_(select(Accounts.id).where(Accounts.offbudget == 0))
+        )
+
+    _balance_base_query._offbudget_patched = True
+    _queries._balance_base_query = _balance_base_query
+    # budgets.py imported the name directly, so patch its reference too.
+    _budgets._balance_base_query = _balance_base_query
+
+    def _balance(self):
+        budget_start, budget_end = (date_to_int(d) for d in self.range)
+        value = object_session(self).scalar(
+            select(func.coalesce(func.sum(Transactions.amount), 0))
+            .join(Accounts, Accounts.id == Transactions.acct)
+            .where(
+                Transactions.category_id == self.category_id,
+                Transactions.date >= budget_start,
+                Transactions.date < budget_end,
+                Transactions.is_parent == 0,
+                Transactions.tombstone == 0,
+                Accounts.offbudget == 0,
+            )
+        )
+        return cents_to_decimal(value)
+
+    BaseBudgets.balance = property(_balance)
+
+
+_apply_offbudget_account_fix()
+
+
 @dataclass
 class BudgetMonth:
     month: str
