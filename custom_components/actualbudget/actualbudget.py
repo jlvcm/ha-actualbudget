@@ -8,7 +8,7 @@ from decimal import Decimal
 import datetime
 import logging
 import threading
-from typing import Dict, List
+from typing import Any, Dict, List, Mapping
 
 from actual import Actual
 from actual.exceptions import (
@@ -25,10 +25,26 @@ from actual.queries import (
 )
 from requests.exceptions import ConnectionError, SSLError
 
+from .const import CONFIG_CERT, CONFIG_SKIP_VALIDATE_CERT
+
 
 _LOGGER = logging.getLogger(__name__)
 
 SESSION_TIMEOUT = datetime.timedelta(minutes=30)
+
+
+def resolve_cert(data: Mapping[str, Any]) -> str | bool | None:
+    """Translate config entry data into actualpy's ``cert`` argument.
+
+    ``False`` disables certificate verification, a string is a path to a
+    custom certificate, and ``None`` keeps the default verification.
+    Typing ``SKIP`` in the certificate field is kept as a legacy way to
+    disable verification.
+    """
+    cert = (data.get(CONFIG_CERT) or "").strip()
+    if data.get(CONFIG_SKIP_VALIDATE_CERT) or cert.upper() == "SKIP":
+        return False
+    return cert or None
 
 
 @dataclass
@@ -49,6 +65,8 @@ class Budget:
 class Account:
     name: str | None
     balance: Decimal
+    off_budget: bool = False
+    closed: bool = False
 
 
 @dataclass
@@ -143,7 +161,10 @@ class ActualBudget:
                 if account.name is None:
                     continue
                 data.accounts[account.name] = Account(
-                    name=account.name, balance=account.balance
+                    name=account.name,
+                    balance=account.balance,
+                    off_budget=bool(account.offbudget),
+                    closed=bool(account.closed),
                 )
 
             budgets_by_name: Dict[str, Budget] = {}
@@ -194,7 +215,7 @@ class ActualBudget:
         with self._lock:
             self._ensure_session()
             self.actual.sync()
-            self.actual.run_bank_sync()
+            self.actual.run_bank_sync(run_rules=True)
             self.actual.commit()
 
     async def run_budget_sync(self) -> None:

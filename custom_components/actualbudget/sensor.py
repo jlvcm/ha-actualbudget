@@ -97,6 +97,14 @@ class ActualBudgetAccountSensor(CoordinatorEntity[ActualBudgetCoordinator], Sens
             return None
         return float(account.balance)
 
+    @property
+    def extra_state_attributes(self) -> Dict[str, bool]:
+        data = self.coordinator.data
+        account = data.accounts.get(self._account_name) if data else None
+        if account is None:
+            return {}
+        return {"off_budget": account.off_budget, "closed": account.closed}
+
 
 class ActualBudgetBudgetSensor(CoordinatorEntity[ActualBudgetCoordinator], SensorEntity):
     """Budget category balance sensor backed by the coordinator snapshot."""

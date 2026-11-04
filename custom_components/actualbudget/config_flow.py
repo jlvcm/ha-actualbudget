@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 from homeassistant import config_entries
 
-from .actualbudget import ActualBudget
+from .actualbudget import ActualBudget, resolve_cert
 from .const import (
     DOMAIN,
     CONFIG_ENDPOINT,
@@ -59,11 +59,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         port = urlparse(endpoint).port
         password = user_input[CONFIG_PASSWORD]
         file = user_input[CONFIG_FILE]
-        cert = user_input.get(CONFIG_CERT)
-        skip_validate_cert = user_input.get(CONFIG_SKIP_VALIDATE_CERT, True)
+        cert = resolve_cert(user_input)
         encrypt_password = user_input.get(CONFIG_ENCRYPT_PASSWORD)
-        if not skip_validate_cert:
-            cert = False
 
         await self.async_set_unique_id(unique_id)
         self._abort_if_unique_id_configured()
