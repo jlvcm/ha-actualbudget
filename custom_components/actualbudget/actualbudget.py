@@ -1,49 +1,129 @@
 """API to ActualBudget."""
 
+from __future__ import annotations
+
+import pathlib
+from dataclasses import dataclass, field
 from decimal import Decimal
+import datetime
 import logging
-from dataclasses import dataclass
-from typing import Dict, List
+import threading
+from typing import Any, Dict, List, Mapping
+
 from actual import Actual
 from actual.exceptions import (
-    UnknownFileId,
+    AuthorizationError,
     InvalidFile,
     InvalidZipFile,
-    AuthorizationError,
+    UnknownFileId,
 )
-from actual.queries import get_accounts, get_account, get_budgets, get_category, get_transactions
+from actual.budgets import get_budget_history
+from actual.database import Accounts, Transactions
+from actual.queries import (
+    get_accounts,
+    get_budgets,
+    get_category,
+)
 from requests.exceptions import ConnectionError, SSLError
-import datetime
-import threading
+from sqlalchemy import func, or_
+from sqlalchemy.orm import aliased
+from sqlmodel import select
+
+from .const import CONFIG_CERT, CONFIG_SKIP_VALIDATE_CERT
 
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.DEBUG)
 
 SESSION_TIMEOUT = datetime.timedelta(minutes=30)
 
 
+def resolve_cert(data: Mapping[str, Any]) -> str | bool | None:
+    """Translate config entry data into actualpy's ``cert`` argument.
+
+    ``False`` disables certificate verification, a string is a path to a
+    custom certificate, and ``None`` keeps the default verification.
+    Typing ``SKIP`` in the certificate field is kept as a legacy way to
+    disable verification.
+    """
+    cert = (data.get(CONFIG_CERT) or "").strip()
+    if data.get(CONFIG_SKIP_VALIDATE_CERT) or cert.upper() == "SKIP":
+        return False
+    return cert or None
+
+
 @dataclass
-class BudgetAmount:
+class BudgetMonth:
     month: str
-    amount: float | None
+    budgeted: float | None
+    spent: float | None
 
 
 @dataclass
 class Budget:
     name: str
-    amounts: List[BudgetAmount]
-    balance: Decimal
+    months: List[BudgetMonth] = field(default_factory=list)
+    accumulated_balance: Decimal = Decimal(0)
 
 
 @dataclass
 class Account:
     name: str | None
     balance: Decimal
+    off_budget: bool = False
+    closed: bool = False
+
+
+@dataclass
+class BudgetData:
+    """Snapshot of all accounts and budgets at a point in time."""
+
+    accounts: Dict[str, Account] = field(default_factory=dict)
+    budgets: Dict[str, Budget] = field(default_factory=dict)
+    uncategorized_count: int = 0
+
+
+def count_uncategorized_transactions(session) -> int:
+    """Count the transactions Actual lists as uncategorized, in SQL.
+
+    Mirrors Actual's own "uncategorized" view: live, non-parent transactions
+    without a category on on-budget accounts. A transfer only counts when its
+    counterpart sits on an off-budget account, since a transfer between two
+    on-budget accounts needs no category.
+    """
+    counterpart = aliased(Transactions)
+    counterpart_account = aliased(Accounts)
+    query = (
+        select(func.count(Transactions.id))
+        .join(Accounts, Transactions.acct == Accounts.id)
+        .outerjoin(
+            counterpart,
+            (Transactions.transferred_id == counterpart.id)
+            & (func.coalesce(counterpart.tombstone, 0) == 0),
+        )
+        .outerjoin(counterpart_account, counterpart.acct == counterpart_account.id)
+        .where(
+            Transactions.date.isnot(None),
+            Transactions.category_id.is_(None),
+            func.coalesce(Transactions.tombstone, 0) == 0,
+            func.coalesce(Transactions.is_parent, 0) == 0,
+            func.coalesce(Accounts.tombstone, 0) == 0,
+            func.coalesce(Accounts.offbudget, 0) == 0,
+            or_(
+                counterpart.id.is_(None),
+                func.coalesce(counterpart_account.offbudget, 0) == 1,
+            ),
+        )
+    )
+    return int(session.exec(query).one())
 
 
 class ActualBudget:
-    """Interfaces to ActualBudget"""
+    """Interface to an Actual Budget server.
+
+    All blocking operations must run in the executor via hass.async_add_executor_job.
+    A reentrant lock serializes access to the Actual session so concurrent
+    refreshes (e.g. poll + manual sync) don't corrupt SQLAlchemy state.
+    """
 
     def __init__(self, hass, endpoint, password, file, cert, encrypt_password):
         self.hass = hass
@@ -52,164 +132,159 @@ class ActualBudget:
         self.file = file
         self.cert = cert
         self.encrypt_password = encrypt_password
-        self.actual = None
-        self.sessionStartedAt = datetime.datetime.now()
-        self._lock = threading.Lock()
+        self.actual: Actual | None = None
+        self.file_id = None
+        self.session_started_at = datetime.datetime.now()
+        self._lock = threading.RLock()
 
-    """ Get Actual session if it exists """
+    def _ensure_session(self):
+        """Return a valid Actual session, creating one if needed.
 
-    def get_session(self):
-        """Get Actual session if it exists, or create a new one safely."""
-        with self._lock:  # Ensure only one thread enters at a time
-            # Invalidate session if it is too old
-            if (
-                self.actual
-                and self.sessionStartedAt + SESSION_TIMEOUT < datetime.datetime.now()
-            ):
-                try:
-                    self.actual.__exit__(None, None, None)
-                except Exception as e:
-                    _LOGGER.error("Error closing session: %s", e)
+        Caller must already hold self._lock.
+        """
+        now = datetime.datetime.now()
+        if self.actual and self.session_started_at + SESSION_TIMEOUT < now:
+            try:
+                self.actual.__exit__(None, None, None)
+            except Exception as err:
+                _LOGGER.warning("Error closing stale Actual session: %s", err)
+            self.actual = None
+
+        if self.actual:
+            try:
+                result = self.actual.validate()
+                if not result.data.validated:
+                    raise RuntimeError("Session not validated")
+            except Exception as err:
+                _LOGGER.warning("Existing Actual session invalid, reconnecting: %s", err)
                 self.actual = None
 
-            # Validate existing session
-            if self.actual:
-                try:
-                    result = self.actual.validate()
-                    if not result.data.validated:
-                        raise Exception("Session not validated")
-                except Exception as e:
-                    _LOGGER.error("Error validating session: %s", e)
-                    self.actual = None
+        if not self.actual:
+            self.actual = self._create_session()
+            self.session_started_at = now
 
-            # Create a new session if needed
-            if not self.actual:
-                self.actual = self.create_session()
-                self.sessionStartedAt = datetime.datetime.now()
+        return self.actual.session
 
-        return self.actual.session  # Return session after lock is released
-
-    def create_session(self):
+    def _create_session(self) -> Actual:
         actual = Actual(
             base_url=self.endpoint,
             password=self.password,
             cert=self.cert,
             encryption_password=self.encrypt_password,
             file=self.file,
-            data_dir=self.hass.config.path("actualbudget"),
         )
+        self.file_id = str(actual._file.file_id)
+        actual._data_dir = (
+            pathlib.Path(self.hass.config.path("actualbudget")) / f"{self.file_id}"
+        )
+        _LOGGER.debug(f"Creating budget file on folder {actual._data_dir}")
         actual.__enter__()
         result = actual.validate()
         if not result.data.validated:
-            raise Exception("Session not validated")
+            raise RuntimeError("Session not validated")
         return actual
 
-    async def get_accounts(self) -> List[Account]:
-        """Get accounts."""
-        return await self.hass.async_add_executor_job(self.get_accounts_sync)
+    # -- bulk fetch ---------------------------------------------------------
 
-    def get_accounts_sync(self) -> List[Account]:
-        session = self.get_session()
-        accounts = get_accounts(session)
-        return [Account(name=a.name, balance=a.balance) for a in accounts]
+    async def fetch_all(self) -> BudgetData:
+        """Fetch all accounts and budgets in a single session lock acquisition."""
+        return await self.hass.async_add_executor_job(self._fetch_all_sync)
 
-    async def get_account(self, account_name) -> Account:
-        return await self.hass.async_add_executor_job(
-            self.get_account_sync,
-            account_name,
-        )
+    def _fetch_all_sync(self) -> BudgetData:
+        with self._lock:
+            session = self._ensure_session()
+            today = datetime.date.today()
 
-    def get_account_sync(
-        self,
-        account_name,
-    ) -> Account:
-        session = self.get_session()
-        account = get_account(session, account_name)
-        if not account:
-            raise Exception(f"Account {account_name} not found")
-        return Account(name=account.name, balance=account.balance)
+            data = BudgetData()
 
-    async def get_budgets(self) -> List[Budget]:
-        """Get budgets."""
-        return await self.hass.async_add_executor_job(self.get_budgets_sync)
-
-    def get_budgets_sync(self) -> List[Budget]:
-        session = self.get_session()
-        budgets_raw = get_budgets(session)
-        budgets: Dict[str, Budget] = {}
-        for budget_raw in budgets_raw:
-            if not budget_raw.category:
-                continue
-            category = str(budget_raw.category.name)
-            amount = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
-            month = str(budget_raw.month)
-            if category not in budgets:
-                budgets[category] = Budget(
-                    name=category, amounts=[], balance=Decimal(0)
+            for account in get_accounts(session):
+                if account.name is None:
+                    continue
+                data.accounts[account.name] = Account(
+                    name=account.name,
+                    balance=account.balance,
+                    off_budget=bool(account.offbudget),
+                    closed=bool(account.closed),
                 )
-            budgets[category].amounts.append(BudgetAmount(month=month, amount=amount))
-        for category in budgets:
-            budgets[category].amounts = sorted(
-                budgets[category].amounts, key=lambda x: x.month
-            )
-            category_data = get_category(session, category)
-            budgets[category].balance = (
-                category_data.balance if category_data else Decimal(0)
-            )
-        return list(budgets.values())
 
-    async def get_budget(self, budget_name) -> Budget:
-        return await self.hass.async_add_executor_job(
-            self.get_budget_sync,
-            budget_name,
-        )
+            budgets_by_name: Dict[str, Budget] = {}
+            for raw in get_budgets(session):
+                if not raw.category:
+                    continue
+                name = str(raw.category.name)
+                if name not in budgets_by_name:
+                    budgets_by_name[name] = Budget(name=name)
+                budgeted = None if not raw.amount else float(raw.amount) / 100
+                spent = float(raw.balance)
+                budgets_by_name[name].months.append(
+                    BudgetMonth(month=str(raw.month), budgeted=budgeted, spent=spent)
+                )
 
-    def get_budget_sync(
-        self,
-        budget_name,
-    ) -> Budget:
-        session = self.get_session()
-        budgets_raw = get_budgets(session, None, budget_name)
-        if not budgets_raw or not budgets_raw[0]:
-            raise Exception(f"budget {budget_name} not found")
-        budget: Budget = Budget(name=budget_name, amounts=[], balance=Decimal(0))
-        for budget_raw in budgets_raw:
-            amount = None if not budget_raw.amount else (float(budget_raw.amount) / 100)
-            month = str(budget_raw.month)
-            budget.amounts.append(BudgetAmount(month=month, amount=amount))
-        budget.amounts = sorted(budget.amounts, key=lambda x: x.month)
-        category_data = get_category(session, budget_name)
-        budget.balance = category_data.balance if category_data else Decimal(0)
-        return budget
+            # Compute the budget history once and reuse it for every category.
+            # get_accumulated_budgeted_balance() recomputes the full history for
+            # each call, which is O(categories * months) and can take minutes on
+            # realistic budgets (see issue #56).
+            history = get_budget_history(session, today)
+            last_budget = history[-1] if history else None
+            for name, budget in budgets_by_name.items():
+                budget.months.sort(key=lambda m: m.month)
+                try:
+                    if last_budget is None:
+                        budget.accumulated_balance = Decimal(0)
+                    else:
+                        category = get_category(session, name)
+                        entry = last_budget.from_category(category)
+                        budget.accumulated_balance = (
+                            entry.accumulated_balance
+                            if entry is not None
+                            else Decimal(0)
+                        )
+                except (AttributeError, TypeError):
+                    budget.accumulated_balance = Decimal(0)
 
-    async def get_uncategorized_transactions_count(self) -> int:
-        """Get count of uncategorized transactions."""
-        return await self.hass.async_add_executor_job(self.get_uncategorized_transactions_count_sync)
+            data.budgets = budgets_by_name
+            data.uncategorized_count = count_uncategorized_transactions(session)
+            return data
 
-    def get_uncategorized_transactions_count_sync(self) -> int:
-        """Get count of uncategorized transactions synchronously."""
-        session = self.get_session()
-        transactions = get_transactions(session)
-        return sum(1 for tx in transactions if tx.category is None)
+    # -- sync actions -------------------------------------------------------
+
+    async def run_bank_sync(self) -> None:
+        """Trigger a bank sync on the Actual server and commit."""
+        await self.hass.async_add_executor_job(self._run_bank_sync)
+
+    def _run_bank_sync(self) -> None:
+        with self._lock:
+            self._ensure_session()
+            self.actual.sync()
+            self.actual.run_bank_sync(run_rules=True)
+            self.actual.commit()
+
+    async def run_budget_sync(self) -> None:
+        """Pull latest budget file from the server."""
+        await self.hass.async_add_executor_job(self._run_budget_sync)
+
+    def _run_budget_sync(self) -> None:
+        with self._lock:
+            self._ensure_session()
+            self.actual.sync()
+
+    # -- connection test ----------------------------------------------------
 
     async def test_connection(self):
-        return await self.hass.async_add_executor_job(self.test_connection_sync)
+        return await self.hass.async_add_executor_job(self._test_connection_sync)
 
-    def test_connection_sync(self):
+    def _test_connection_sync(self):
         try:
-            actualSession = self.get_session()
-            if not actualSession:
-                return "failed_file"
+            with self._lock:
+                session = self._ensure_session()
+                if not session:
+                    return "failed_file"
         except SSLError:
             return "failed_ssl"
         except ConnectionError:
             return "failed_connection"
         except AuthorizationError:
             return "failed_auth"
-        except UnknownFileId:
-            return "failed_file"
-        except InvalidFile:
-            return "failed_file"
-        except InvalidZipFile:
+        except (UnknownFileId, InvalidFile, InvalidZipFile):
             return "failed_file"
         return None
