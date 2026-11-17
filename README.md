@@ -10,6 +10,7 @@ Note: It's a work in progress, it should work but it may have some bugs and brea
 
 - Gets all accounts balance and set it as sensors
 - Gets all budgets and set the current month as sensors (last month and total are set as extra attributes)
+- Counts the transactions that still need a category (`uncategorized_transactions` sensor). Transactions on off-budget accounts, split parents, deleted transactions and transfers between on-budget accounts are not counted
 
 # Installation
 

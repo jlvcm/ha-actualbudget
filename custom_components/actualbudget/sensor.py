@@ -33,6 +33,7 @@ async def async_setup_entry(
 
     entities: list[SensorEntity] = [
         ActualBudgetLastSyncSensor(coordinator, unique_source_id, prefix),
+        ActualBudgetUncategorizedSensor(coordinator, unique_source_id, prefix),
     ]
     data = coordinator.data
     if data is not None:
@@ -228,3 +229,40 @@ class ActualBudgetLastSyncSensor(CoordinatorEntity[ActualBudgetCoordinator], Sen
     @property
     def available(self) -> bool:
         return True
+
+
+class ActualBudgetUncategorizedSensor(CoordinatorEntity[ActualBudgetCoordinator], SensorEntity):
+    """Number of transactions that still need a category."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:help-circle-outline"
+    _attr_native_unit_of_measurement = "transactions"
+
+    def __init__(
+        self,
+        coordinator: ActualBudgetCoordinator,
+        unique_source_id: str,
+        prefix: str | None,
+    ) -> None:
+        super().__init__(coordinator)
+        base_name = "uncategorized_transactions"
+        self._attr_name = f"{prefix}_{base_name}" if prefix else base_name
+        if prefix:
+            self._attr_unique_id = (
+                f"{DOMAIN}-{unique_source_id}-{prefix}-uncategorized-transactions".lower()
+            )
+        else:
+            self._attr_unique_id = (
+                f"{DOMAIN}-{unique_source_id}-uncategorized-transactions".lower()
+            )
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.coordinator.data is not None
+
+    @property
+    def native_value(self) -> int | None:
+        data = self.coordinator.data
+        if data is None:
+            return None
+        return data.uncategorized_count

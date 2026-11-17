@@ -18,12 +18,16 @@ from actual.exceptions import (
     UnknownFileId,
 )
 from actual.budgets import get_budget_history
+from actual.database import Accounts, Transactions
 from actual.queries import (
     get_accounts,
     get_budgets,
     get_category,
 )
 from requests.exceptions import ConnectionError, SSLError
+from sqlalchemy import func, or_
+from sqlalchemy.orm import aliased
+from sqlmodel import select
 
 from .const import CONFIG_CERT, CONFIG_SKIP_VALIDATE_CERT
 
@@ -75,6 +79,42 @@ class BudgetData:
 
     accounts: Dict[str, Account] = field(default_factory=dict)
     budgets: Dict[str, Budget] = field(default_factory=dict)
+    uncategorized_count: int = 0
+
+
+def count_uncategorized_transactions(session) -> int:
+    """Count the transactions Actual lists as uncategorized, in SQL.
+
+    Mirrors Actual's own "uncategorized" view: live, non-parent transactions
+    without a category on on-budget accounts. A transfer only counts when its
+    counterpart sits on an off-budget account, since a transfer between two
+    on-budget accounts needs no category.
+    """
+    counterpart = aliased(Transactions)
+    counterpart_account = aliased(Accounts)
+    query = (
+        select(func.count(Transactions.id))
+        .join(Accounts, Transactions.acct == Accounts.id)
+        .outerjoin(
+            counterpart,
+            (Transactions.transferred_id == counterpart.id)
+            & (func.coalesce(counterpart.tombstone, 0) == 0),
+        )
+        .outerjoin(counterpart_account, counterpart.acct == counterpart_account.id)
+        .where(
+            Transactions.date.isnot(None),
+            Transactions.category_id.is_(None),
+            func.coalesce(Transactions.tombstone, 0) == 0,
+            func.coalesce(Transactions.is_parent, 0) == 0,
+            func.coalesce(Accounts.tombstone, 0) == 0,
+            func.coalesce(Accounts.offbudget, 0) == 0,
+            or_(
+                counterpart.id.is_(None),
+                func.coalesce(counterpart_account.offbudget, 0) == 1,
+            ),
+        )
+    )
+    return int(session.exec(query).one())
 
 
 class ActualBudget:
@@ -203,6 +243,7 @@ class ActualBudget:
                     budget.accumulated_balance = Decimal(0)
 
             data.budgets = budgets_by_name
+            data.uncategorized_count = count_uncategorized_transactions(session)
             return data
 
     # -- sync actions -------------------------------------------------------
