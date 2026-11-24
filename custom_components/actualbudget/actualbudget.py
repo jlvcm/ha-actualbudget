@@ -23,7 +23,7 @@ from actual.queries import (
     get_budgets,
     get_category,
 )
-from requests.exceptions import ConnectionError, SSLError
+from requests.exceptions import ConnectionError, RequestException, SSLError
 
 from .const import CONFIG_CERT, CONFIG_SKIP_VALIDATE_CERT
 
@@ -71,10 +71,11 @@ class Account:
 
 @dataclass
 class BudgetData:
-    """Snapshot of all accounts and budgets at a point in time."""
+    """Snapshot of accounts, budgets, and server metadata."""
 
     accounts: Dict[str, Account] = field(default_factory=dict)
     budgets: Dict[str, Budget] = field(default_factory=dict)
+    server_version: str | None = None
 
 
 class ActualBudget:
@@ -203,6 +204,11 @@ class ActualBudget:
                     budget.accumulated_balance = Decimal(0)
 
             data.budgets = budgets_by_name
+            try:
+                data.server_version = self.actual.info().build.version or None
+            except (RequestException, ValueError) as err:
+                # Older servers or proxies may not return valid build metadata.
+                _LOGGER.debug("Could not read Actual Budget server version: %s", err)
             return data
 
     # -- sync actions -------------------------------------------------------
