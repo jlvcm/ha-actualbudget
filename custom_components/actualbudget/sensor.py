@@ -9,6 +9,7 @@ from typing import Dict, Union
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -33,6 +34,7 @@ async def async_setup_entry(
 
     entities: list[SensorEntity] = [
         ActualBudgetLastSyncSensor(coordinator, unique_source_id, prefix),
+        ActualBudgetServerVersionSensor(coordinator, config_entry.entry_id, prefix),
     ]
     data = coordinator.data
     if data is not None:
@@ -186,6 +188,34 @@ class ActualBudgetBudgetSensor(CoordinatorEntity[ActualBudgetCoordinator], Senso
         if data is None:
             return None
         return data.budgets.get(self._category_name)
+
+
+class ActualBudgetServerVersionSensor(
+    CoordinatorEntity[ActualBudgetCoordinator], SensorEntity
+):
+    """Report the installed Actual Budget server version as text."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:server"
+
+    def __init__(
+        self,
+        coordinator: ActualBudgetCoordinator,
+        entry_id: str,
+        prefix: str | None,
+    ) -> None:
+        super().__init__(coordinator)
+        self._attr_name = f"{prefix}_server_version" if prefix else "server_version"
+        self._attr_unique_id = f"{DOMAIN}-server-version-{entry_id}"
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.native_value is not None
+
+    @property
+    def native_value(self) -> str | None:
+        data = self.coordinator.data
+        return data.server_version if data is not None else None
 
 
 class ActualBudgetLastSyncSensor(CoordinatorEntity[ActualBudgetCoordinator], SensorEntity):

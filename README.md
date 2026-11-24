@@ -10,6 +10,7 @@ Note: It's a work in progress, it should work but it may have some bugs and brea
 
 - Gets all accounts balance and set it as sensors
 - Gets all budgets and set the current month as sensors (last month and total are set as extra attributes)
+- Exposes the installed Actual Budget server version as a diagnostic sensor (`sensor.actualbudget_server_version` with the default prefix). Use it in templates to compare against the latest release. If the server doesn't report a version, only this sensor is unavailable.
 
 # Installation
 
