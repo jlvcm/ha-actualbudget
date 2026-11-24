@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import datetime
 import logging
-from typing import Dict, Union
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.components.sensor.const import SensorDeviceClass
@@ -98,7 +96,7 @@ class ActualBudgetAccountSensor(CoordinatorEntity[ActualBudgetCoordinator], Sens
         return float(account.balance)
 
     @property
-    def extra_state_attributes(self) -> Dict[str, bool]:
+    def extra_state_attributes(self) -> dict[str, bool]:
         data = self.coordinator.data
         account = data.accounts.get(self._account_name) if data else None
         if account is None:
@@ -153,33 +151,22 @@ class ActualBudgetBudgetSensor(CoordinatorEntity[ActualBudgetCoordinator], Senso
         return float(round(budget.accumulated_balance, 2))
 
     @property
-    def extra_state_attributes(self) -> Dict[str, Union[str, float, None]]:
+    def extra_state_attributes(self) -> dict[str, str | float]:
         budget = self._current_budget()
         if budget is None:
             return {}
-        now = datetime.datetime.now()
-        months = [
-            m
-            for m in budget.months
-            if datetime.datetime.strptime(m.month, "%Y%m") <= now
-        ]
-        if not months:
-            return {}
-        current = months[-1]
-        attrs: Dict[str, Union[str, float, None]] = {
+        current, previous = budget.current, budget.previous
+        return {
             "current_month": current.month,
             "current_budgeted": current.budgeted,
             "current_amount": current.budgeted,  # backward compat
             "current_spent": current.spent,
+            "previous_month": previous.month,
+            "previous_budgeted": previous.budgeted,
+            "previous_amount": previous.budgeted,  # backward compat
+            "previous_spent": previous.spent,
+            "total_amount": budget.total_budgeted,  # backward compat
         }
-        if len(months) > 1:
-            previous = months[-2]
-            attrs["previous_month"] = previous.month
-            attrs["previous_budgeted"] = previous.budgeted
-            attrs["previous_amount"] = previous.budgeted  # backward compat
-            attrs["previous_spent"] = previous.spent
-            attrs["total_amount"] = sum(m.budgeted or 0 for m in months)  # backward compat
-        return attrs
 
     def _current_budget(self):
         data = self.coordinator.data
@@ -222,7 +209,7 @@ class ActualBudgetLastSyncSensor(CoordinatorEntity[ActualBudgetCoordinator], Sen
         return self.coordinator.last_refresh
 
     @property
-    def extra_state_attributes(self) -> Dict[str, Union[str, float, bool, None]]:
+    def extra_state_attributes(self) -> dict[str, bool]:
         return {"syncing": self.coordinator.syncing}
 
     @property
