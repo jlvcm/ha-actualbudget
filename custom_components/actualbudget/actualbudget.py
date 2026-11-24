@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import pathlib
-from dataclasses import dataclass, field
-from decimal import Decimal
 import datetime
 import logging
+import pathlib
 import threading
-from typing import Any, Dict, List, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from actual import Actual
 from actual.exceptions import (
@@ -17,16 +16,10 @@ from actual.exceptions import (
     InvalidZipFile,
     UnknownFileId,
 )
-from actual.budgets import get_budget_history
-from actual.queries import (
-    get_accounts,
-    get_budgets,
-    get_category,
-)
 from requests.exceptions import ConnectionError, SSLError
 
+from .balances import BudgetData, read_balances
 from .const import CONFIG_CERT, CONFIG_SKIP_VALIDATE_CERT
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,36 +38,6 @@ def resolve_cert(data: Mapping[str, Any]) -> str | bool | None:
     if data.get(CONFIG_SKIP_VALIDATE_CERT) or cert.upper() == "SKIP":
         return False
     return cert or None
-
-
-@dataclass
-class BudgetMonth:
-    month: str
-    budgeted: float | None
-    spent: float | None
-
-
-@dataclass
-class Budget:
-    name: str
-    months: List[BudgetMonth] = field(default_factory=list)
-    accumulated_balance: Decimal = Decimal(0)
-
-
-@dataclass
-class Account:
-    name: str | None
-    balance: Decimal
-    off_budget: bool = False
-    closed: bool = False
-
-
-@dataclass
-class BudgetData:
-    """Snapshot of all accounts and budgets at a point in time."""
-
-    accounts: Dict[str, Account] = field(default_factory=dict)
-    budgets: Dict[str, Budget] = field(default_factory=dict)
 
 
 class ActualBudget:
@@ -153,57 +116,7 @@ class ActualBudget:
     def _fetch_all_sync(self) -> BudgetData:
         with self._lock:
             session = self._ensure_session()
-            today = datetime.date.today()
-
-            data = BudgetData()
-
-            for account in get_accounts(session):
-                if account.name is None:
-                    continue
-                data.accounts[account.name] = Account(
-                    name=account.name,
-                    balance=account.balance,
-                    off_budget=bool(account.offbudget),
-                    closed=bool(account.closed),
-                )
-
-            budgets_by_name: Dict[str, Budget] = {}
-            for raw in get_budgets(session):
-                if not raw.category:
-                    continue
-                name = str(raw.category.name)
-                if name not in budgets_by_name:
-                    budgets_by_name[name] = Budget(name=name)
-                budgeted = None if not raw.amount else float(raw.amount) / 100
-                spent = float(raw.balance)
-                budgets_by_name[name].months.append(
-                    BudgetMonth(month=str(raw.month), budgeted=budgeted, spent=spent)
-                )
-
-            # Compute the budget history once and reuse it for every category.
-            # get_accumulated_budgeted_balance() recomputes the full history for
-            # each call, which is O(categories * months) and can take minutes on
-            # realistic budgets (see issue #56).
-            history = get_budget_history(session, today)
-            last_budget = history[-1] if history else None
-            for name, budget in budgets_by_name.items():
-                budget.months.sort(key=lambda m: m.month)
-                try:
-                    if last_budget is None:
-                        budget.accumulated_balance = Decimal(0)
-                    else:
-                        category = get_category(session, name)
-                        entry = last_budget.from_category(category)
-                        budget.accumulated_balance = (
-                            entry.accumulated_balance
-                            if entry is not None
-                            else Decimal(0)
-                        )
-                except (AttributeError, TypeError):
-                    budget.accumulated_balance = Decimal(0)
-
-            data.budgets = budgets_by_name
-            return data
+            return read_balances(session, datetime.date.today())
 
     # -- sync actions -------------------------------------------------------
 
