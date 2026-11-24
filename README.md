@@ -11,6 +11,16 @@ Note: It's a work in progress, it should work but it may have some bugs and brea
 - Gets all accounts balance and set it as sensors
 - Gets all budgets and set the current month as sensors (last month and total are set as extra attributes)
 
+Tracking Budget files also get three current-month sensors:
+
+| Sensor | State | Extra amount |
+| ------ | ----- | ------------ |
+| Monthly income | Income received | `budgeted`: planned income |
+| Monthly expenses | Net spending | `budgeted`: planned expenses |
+| Projected savings | Planned income minus planned expenses | |
+
+All three have a `current_month` attribute in `YYYYMM` format. If you switch an existing file to Tracking Budget, reload the integration to add these sensors.
+
 # Installation
 
 ## HACS

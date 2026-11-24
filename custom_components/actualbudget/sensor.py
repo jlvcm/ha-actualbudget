@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .balances import TrackingSummary
 from .const import CONFIG_PREFIX, CONFIG_UNIT, DEFAULT_ICON, DOMAIN
 from .coordinator import ActualBudgetCoordinator
 
@@ -34,6 +35,17 @@ async def async_setup_entry(
     ]
     data = coordinator.data
     if data is not None:
+        if data.tracking_summary is not None:
+            for key, label in (
+                ("income", "Monthly income"),
+                ("expenses", "Monthly expenses"),
+                ("projected_savings", "Projected savings"),
+            ):
+                entities.append(
+                    ActualBudgetTrackingSummarySensor(
+                        coordinator, key, label, unit, unique_source_id, prefix
+                    )
+                )
         for name in data.accounts:
             entities.append(
                 ActualBudgetAccountSensor(coordinator, name, unit, unique_source_id, prefix)
@@ -173,6 +185,56 @@ class ActualBudgetBudgetSensor(CoordinatorEntity[ActualBudgetCoordinator], Senso
         if data is None:
             return None
         return data.budgets.get(self._category_name)
+
+
+class ActualBudgetTrackingSummarySensor(
+    CoordinatorEntity[ActualBudgetCoordinator], SensorEntity
+):
+    """Expose a current-month figure from the Tracking Budget header."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_icon = DEFAULT_ICON
+
+    def __init__(
+        self,
+        coordinator: ActualBudgetCoordinator,
+        key: str,
+        label: str,
+        unit: str,
+        unique_source_id: str,
+        prefix: str | None,
+    ) -> None:
+        super().__init__(coordinator)
+        self._key = key
+        self._attr_native_unit_of_measurement = unit
+        self._attr_name = f"{prefix}_{label}" if prefix else label
+        source = f"{unique_source_id}-{prefix}" if prefix else unique_source_id
+        self._attr_unique_id = f"{DOMAIN}-tracking-summary-{source}-{key}".lower()
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._summary is not None
+
+    @property
+    def native_value(self) -> float | None:
+        summary = self._summary
+        return float(getattr(summary, self._key)) if summary is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str | float]:
+        summary = self._summary
+        if summary is None:
+            return {}
+        attributes: dict[str, str | float] = {"current_month": summary.month}
+        budgeted = getattr(summary, f"budgeted_{self._key}", None)
+        if budgeted is not None:
+            attributes["budgeted"] = float(budgeted)
+        return attributes
+
+    @property
+    def _summary(self) -> TrackingSummary | None:
+        data = self.coordinator.data
+        return data.tracking_summary if data is not None else None
 
 
 class ActualBudgetLastSyncSensor(CoordinatorEntity[ActualBudgetCoordinator], SensorEntity):

@@ -42,12 +42,28 @@ class Account:
     closed: bool
 
 
+@dataclass(frozen=True)
+class TrackingSummary:
+    """Current-month totals shown in Actual's Tracking Budget header."""
+
+    month: str
+    income: Decimal
+    expenses: Decimal
+    budgeted_income: Decimal
+    budgeted_expenses: Decimal
+
+    @property
+    def projected_savings(self) -> Decimal:
+        return self.budgeted_income - self.budgeted_expenses
+
+
 @dataclass
 class BudgetData:
     """Snapshot of all accounts and budgets at a point in time."""
 
     accounts: dict[str, Account] = field(default_factory=dict)
     budgets: dict[str, Budget] = field(default_factory=dict)
+    tracking_summary: TrackingSummary | None = None
 
 
 # The Actual account register sums top-level transactions (including split
@@ -80,7 +96,8 @@ _CATEGORY_SPENDING = text("""
 """)
 
 _CATEGORIES = text("""
-    SELECT c.id, c.name, c.is_income, g.name AS group_name
+    SELECT c.id, c.name, c.is_income, c.hidden, g.name AS group_name,
+        g.is_income AS group_is_income, g.hidden AS group_hidden
     FROM categories c
     JOIN category_groups g ON g.id = c.cat_group AND g.tombstone = 0
     WHERE c.tombstone = 0 AND c.name IS NOT NULL
@@ -171,9 +188,22 @@ def read_balances(session: Session, today: date) -> BudgetData:
         allocations[row.category][row.month] = (row.amount or 0, row.carryover == 1)
 
     categories = session.execute(_CATEGORIES, {"tracking": tracking}).all()
+    income = expenses = budgeted_income = budgeted_expenses = 0
     for category, name in _sensor_names(categories, lambda row: row.group_name):
         category_allocations = allocations[category.id]
         category_spent = spent[category.id]
+        # Tracking totals exclude hidden categories and hidden expense groups.
+        # Use monthly activity, not balances or leftover carryovers.
+        if tracking and not category.hidden:
+            amount, _ = category_allocations.get(current_number, (0, False))
+            activity = category_spent.get(current_number, 0)
+            if category.group_is_income:
+                income += activity
+                budgeted_income += amount
+            elif not category.group_hidden:
+                expenses -= activity
+                budgeted_expenses += amount
+
         balance = 0
         carryover = False
         for month in month_numbers:
@@ -195,6 +225,15 @@ def read_balances(session: Session, today: date) -> BudgetData:
             ),
             accumulated_balance=cents_to_decimal(balance),
             total_budgeted=float(cents_to_decimal(total_budgeted)),
+        )
+
+    if tracking:
+        data.tracking_summary = TrackingSummary(
+            month=str(current_number),
+            income=cents_to_decimal(income),
+            expenses=cents_to_decimal(expenses),
+            budgeted_income=cents_to_decimal(budgeted_income),
+            budgeted_expenses=cents_to_decimal(budgeted_expenses),
         )
 
     return data
